@@ -4,7 +4,7 @@ import nox
 @nox.session
 def docs(session):
     session.install(".")
-    session.install("sphinx", "sphinx-autobuild")
+    session.install("sphinx", "sphinx-autobuild", "sphinx-rtd-theme", "furo")
     session.run("rm", "-rf", "build/html", external=True)
     sphinx_args = ["-W", "docs/source", "build/html"]
 
