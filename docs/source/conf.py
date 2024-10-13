@@ -15,13 +15,14 @@
 import datetime
 import os
 import sys
+from importlib.metadata import PackageNotFoundError
 
 
 # noinspection PyUnresolvedReferences
 try:
     from importlib.metadata import Distribution
     __version__ = Distribution.from_name("aio-pika").version
-except ImportError:
+except (ImportError, PackageNotFoundError):
     import pkg_resources
     __version__ = pkg_resources.get_distribution("aio-pika").version
 
