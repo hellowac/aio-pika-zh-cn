@@ -25,7 +25,7 @@ import sys
 # noinspection PyUnresolvedReferences
 try:
     from importlib.metadata import Distribution
-    __version__ = Distribution.from_name("aio_pika").version
+    __version__ = Distribution.from_name("aio-pika").version
 except ImportError:
     import pkg_resources
     __version__ = pkg_resources.get_distribution("aio_pika").version
