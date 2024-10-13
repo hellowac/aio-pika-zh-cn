@@ -21,16 +21,16 @@ import datetime
 import os
 import sys
 
+sys.path.insert(0, os.path.abspath(os.path.dirname("__file__")))
+
 
 # noinspection PyUnresolvedReferences
 try:
     from importlib.metadata import Distribution
-    __version__ = Distribution.from_name("aio-pika").version
+    __version__ = Distribution.from_name("aio_pika").version
 except ImportError:
     import pkg_resources
     __version__ = pkg_resources.get_distribution("aio_pika").version
-
-sys.path.insert(0, os.path.abspath(os.path.dirname("__file__")))
 
 
 autoclass_content = "both"
