@@ -18,7 +18,7 @@ jobs:
           python-version: '3.10' 
       - name: 安装依赖
         run: |
-          pip install sphinx sphinx_rtd_theme furo setuptools
+          pip install sphinx sphinx_rtd_theme furo setuptools autodoc
       - name: Sphinx 构建
         working-directory: ./
         run: |
