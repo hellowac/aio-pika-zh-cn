@@ -1,6 +1,7 @@
 name: documentation
 
 # see: https://coderefinery.github.io/documentation/gh_workflow/
+# see: https://github.com/actions/setup-python
 
 on: [push, pull_request, workflow_dispatch]
 
@@ -13,13 +14,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
-      - name: Install dependencies
+        with:
+          python-version: '3.10' 
+      - name: 安装依赖
         run: |
           pip install sphinx sphinx_rtd_theme furo
-      - name: Sphinx build
+      - name: Sphinx 构建
         run: |
           sphinx-build -W docs/source build/html
-      - name: Deploy to GitHub Pages
+      - name: 部署到 GitHub Pages
         uses: peaceiris/actions-gh-pages@v3
         if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
         with:
