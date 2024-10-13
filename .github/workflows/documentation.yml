@@ -17,6 +17,7 @@ jobs:
         with:
           python-version: '3.10' 
       - name: 安装依赖1
+        # 安装当前的项目作为一个包
         run: |
           pip install .
       - name: 安装依赖2

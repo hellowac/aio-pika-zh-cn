@@ -8,7 +8,7 @@
 .. _aiormq: http://github.com/mosquito/aiormq/
 
 
-Welcome to aio-pika's documentation!
+欢迎来到 aio-pika 的文档
 ====================================
 
 .. image:: https://coveralls.io/repos/github/mosquito/aio-pika/badge.svg?branch=master
@@ -33,108 +33,87 @@ Welcome to aio-pika's documentation!
     :target: https://pypi.python.org/pypi/aio-pika/
 
 
-`aio-pika`_ is a wrapper for the `aiormq`_ for `asyncio`_ and humans.
+`aio-pika`_ 是一个基于 `aiormq`_ 和 `asyncio`_ 的更人性化的包.
 
 
-Features
+功能
 ++++++++
 
-* Completely asynchronous API.
-* Object oriented API.
-* Transparent auto-reconnects with complete state recovery with `connect_robust`
-  (e.g. declared queues or exchanges, consuming state and bindings).
-* Python 3.6+ compatible.
-* For python 3.5 users available `aio-pika<7`
-* Transparent `publisher confirms`_ support
-* `Transactions`_ support
-* Completely type-hints coverage.
+* 完全异步的 API。
+* 面向对象的 API。
+* 使用 `connect_robust` 实现透明的自动重连，完全状态恢复（例如，声明的队列或交换机、消费状态和绑定）。
+* 兼容 Python 3.6 及以上版本。
+* 对于 Python 3.5 用户，可以使用 `aio-pika<7`。
+* 透明的 `publisher confirms`_ 支持。
+* 支持 `Transactions`_ (事物)。
+* 完全的类型提示覆盖。
 
 .. _publisher confirms: https://www.rabbitmq.com/confirms.html
 .. _Transactions: https://www.rabbitmq.com/semantics.html#tx
 
-AMQP URL parameters
+AMQP URL 参数
 +++++++++++++++++++
 
-URL is the supported way to configure connection.
-For customisation of connection behaviour you might
-pass the parameters in URL query-string like format.
+URL 是配置连接的支持方式。为了自定义连接行为，您可以像传递查询字符串那样传递参数。
 
-This article describes a description for these parameters.
+本文描述了这些参数的说明。
 
-``aiormq`` specific
+``aiormq`` 特定参数
 ~~~~~~~~~~~~~~~~~~~
 
-* ``name`` (``str`` url encoded) - A string that will be visible in the RabbitMQ management console and in
-  the server logs, convenient for diagnostics.
+* ``name`` (``str`` URL 编码) - 一个字符串，在 RabbitMQ 管理控制台和服务器日志中可见，便于诊断。
 
-* ``cafile`` (``str``) - Path to Certificate Authority file
+* ``cafile`` (``str``) - 证书授权文件的路径。
 
-* ``capath`` (``str``) - Path to Certificate Authority directory
+* ``capath`` (``str``) - 证书授权目录的路径。
 
-* ``cadata`` (``str`` url encoded) - URL encoded CA certificate content
+* ``cadata`` (``str`` URL 编码) - URL 编码的 CA 证书内容。
 
-* ``keyfile`` (``str``) - Path to client ssl private key file
+* ``keyfile`` (``str``) - 客户端 SSL 私钥文件的路径。
 
-* ``certfile`` (``str``) - Path to client ssl certificate file
+* ``certfile`` (``str``) - 客户端 SSL 证书文件的路径。
 
-* ``no_verify_ssl`` - No verify server SSL certificates. ``0`` by default and means ``False`` other value means
-  ``True``.
+* ``no_verify_ssl`` - 不验证服务器 SSL 证书。默认值为 ``0``，表示 ``False``，其他值表示 ``True``。
 
-* ``heartbeat`` (``int``-like) - interval in seconds between AMQP heartbeat packets. ``0`` disables this feature.
+* ``heartbeat`` (``int`` 类似) - AMQP 心跳包之间的间隔（以秒为单位）。``0`` 表示禁用此功能。
 
 
-``aio_pika.connect`` function and ``aio_pika.Connection`` class specific
+``aio_pika.connect`` 函数和 ``aio_pika.Connection`` 类特定参数
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-* ``interleave`` (``int``-like) - controls address reordering when a host name resolves to multiple
-  IP addresses. If 0 or unspecified, no reordering is done, and addresses are tried
-  in the order returned by ``getaddrinfo()``. If a positive integer is specified,
-  the addresses are interleaved by address family, and the given integer is interpreted
-  as "First Address Family Count" as defined in `RFC 8305`_. The default is ``0`` if
-  ``happy_eyeballs_delay`` is not specified, and ``1`` if it is.
+* ``interleave`` (``int`` 类似) - 控制当主机名解析为多个 IP 地址时的地址重排序。如果为 0 或未指定，则不进行重排序，地址按 ``getaddrinfo()`` 返回的顺序尝试。如果指定了正整数，则按地址族交错这些地址，该整数被解释为 `RFC 8305` 中定义的“首地址族计数”。如果未指定 ``happy_eyeballs_delay``，默认值为 ``0``；如果指定，则为 ``1``。
 
   .. note::
 
-      Really useful for RabbitMQ clusters with one DNS name with many ``A``/``AAAA`` records.
+      对于使用一个 DNS 名称的 RabbitMQ 集群，具有多个 ``A``/``AAAA`` 记录，这个选项非常有用。
 
   .. warning::
 
-      This option is supported by ``asyncio.DefaultEventLoopPolicy`` and available since python 3.8.
+      此选项由 ``asyncio.DefaultEventLoopPolicy`` 支持，并在 Python 3.8 及以后版本可用。
 
-* ``happy_eyeballs_delay`` (``float``-like) - if given, enables Happy Eyeballs for this connection.
-  It should be a floating-point number representing the amount of time in seconds to wait for a connection attempt
-  to complete, before starting the next attempt in parallel. This is the "Connection Attempt Delay" as defined in
-  `RFC 8305`_. A sensible default value recommended by the RFC is ``0.25`` (250 milliseconds).
+* ``happy_eyeballs_delay`` (``float`` 类似) - 如果给定，则为此连接启用 Happy Eyeballs。它应为一个浮点数，表示在开始下一个并行连接尝试之前，等待当前连接尝试完成的时间（以秒为单位）。这被称为 `RFC 8305` 中定义的“连接尝试延迟”。RFC 推荐的合理默认值是 ``0.25``（250 毫秒）。
 
   .. note::
 
-      Really useful for RabbitMQ clusters with one DNS name with many ``A``/``AAAA`` records.
+      对于使用一个 DNS 名称的 RabbitMQ 集群，具有多个 ``A``/``AAAA`` 记录，这个选项非常有用。
 
   .. warning::
 
-      This option is supported by ``asyncio.DefaultEventLoopPolicy`` and available since python 3.8.
+      此选项由 ``asyncio.DefaultEventLoopPolicy`` 支持，并在 Python 3.8 及以后版本可用。
 
-``aio_pika.connect_robust`` function and ``aio_pika.RobustConnection`` class specific
+``aio_pika.connect_robust`` 函数和 ``aio_pika.RobustConnection`` 类特定参数
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-For ``aio_pika.RobustConnection`` class is applicable all ``aio_pika.Connection`` related parameters like,
-``name``/``interleave``/``happy_eyeballs_delay`` and some specific:
+对于 ``aio_pika.RobustConnection`` 类，适用所有与 ``aio_pika.Connection`` 相关的参数，如 ``name``/``interleave``/``happy_eyeballs_delay``，以及一些特定参数：
 
+* ``reconnect_interval`` (``float`` 类似) - 重新建立连接的尝试间隔（以秒为单位），表示不超过此时间间隔进行重连尝试。
 
-* ``reconnect_interval`` (``float``-like) - is the period in seconds, not more often than the attempts to
-  re-establish the connection will take place.
-
-
-* ``fail_fast`` (``true``/``yes``/``y``/``enable``/``on``/``enabled``/``1`` means ``True``, otherwise ``False``) -
-  special behavior for the start connection attempt, if it fails, all other attempts stops and an exception will be
-  thrown at the connection stage. Enabled by default, if you are sure you need to disable this feature, be ensures
-  for the passed URL is reallt working. Otherwise, your program will go into endless reconnection attempts that can
-  not be successed.
+* ``fail_fast`` (``true``/``yes``/``y``/``enable``/``on``/``enabled``/``1`` 表示 ``True``，否则为 ``False``) - 在启动连接尝试时的特殊行为，如果尝试失败，则所有其他尝试将停止，并在连接阶段抛出异常。默认启用，如果你确定需要禁用此功能，请确保传递的 URL 实际可用。否则，程序将进入无休止的重连尝试，无法成功。
 
 .. _RFC 8305: https://datatracker.ietf.org/doc/html/rfc8305.html
 
 
-URL examples
+URL 示例
 ~~~~~~~~~~~~
 
 * ``amqp://username:password@hostname/vhost?name=connection%20name&heartbeat=60&happy_eyeballs_delay=0.25``
@@ -146,17 +125,17 @@ URL examples
 * ``amqps://username:password@hostname/vhost?cafile=/path/to/ca.pem&keyfile=/path/to/key.pem&certfile=/path/to/sert.pem``
 
 
-Installation
+安装
 ++++++++++++
 
-Installation with pip:
+使用pip:
 
 .. code-block:: shell
 
     pip install aio-pika
 
 
-Installation from git:
+使用git:
 
 .. code-block:: shell
 
@@ -169,10 +148,10 @@ Installation from git:
     python setup.py install
 
 
-Development
+开发
 +++++++++++
 
-Clone the project:
+克隆项目:
 
 .. code-block:: shell
 
@@ -180,19 +159,19 @@ Clone the project:
     cd aio-pika
 
 
-Create a new virtualenv for `aio-pika`_:
+创建一个属于 `aio-pika`_ 的虚拟环境:
 
 .. code-block:: shell
 
     virtualenv -p python3.5 env
 
-Install all requirements for `aio-pika`_:
+安装 `aio-pika`_ 的所有依赖:
 
 .. code-block:: shell
 
     env/bin/pip install -e '.[develop]'
 
-Table Of Contents
+目录
 +++++++++++++++++
 
 .. toctree::
@@ -205,7 +184,7 @@ Table Of Contents
    apidoc
 
 
-Thanks for contributing
+感谢以下人员的贡献
 +++++++++++++++++++++++
 
 * `@mosquito`_ (author)
@@ -283,16 +262,15 @@ Thanks for contributing
 .. _@dizballanze: https://github.com/dizballanze
 
 
-See also
+同样参考
 ++++++++
 
 `aiormq`_
 ~~~~~~~~~
 
-`aiormq` is a pure python AMQP client library. It is under the hood of **aio-pika** and might to be used when you really loving works with the protocol low level.
-Following examples demonstrates the user API.
+`aiormq` 是一个纯 Python 的 AMQP 客户端库。它在 **aio-pika** 的底层实现中，可以在你需要与协议进行底层交互时使用。以下示例演示了用户 API 的用法。
 
-Simple consumer:
+Simple 消费者:
 
 .. code-block:: python
 
@@ -327,7 +305,7 @@ Simple consumer:
     loop.run_until_complete(main())
     loop.run_forever()
 
-Simple publisher:
+Simple 发布者:
 
 .. code-block:: python
 
@@ -364,12 +342,12 @@ Simple publisher:
     assert MESSAGE.routing_key == "hello"
     assert MESSAGE.body == b'Hello World!'
 
-The `patio`_ and the `patio-rabbitmq`_
+`patio`_ 和 `patio-rabbitmq`_
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-**PATIO** is an acronym for Python Asynchronous Tasks for AsyncIO - an easily extensible library, for distributed task execution, like celery, only targeting asyncio as the main design approach.
+**PATIO** 是 “Python Asynchronous Tasks for AsyncIO(基于异步IO的python异步任务)” 的缩写——一个易于扩展的库，用于分布式任务执行，类似于 Celery，但主要设计为支持 asyncio。
 
-**patio-rabbitmq** provides you with the ability to use *RPC over RabbitMQ* services with extremely simple implementation:
+**patio-rabbitmq** 让你能够使用 *基于 RabbitMQ 的 RPC* 服务，且实现非常简单：
 
 .. code-block:: python
 
@@ -389,7 +367,7 @@ The `patio`_ and the `patio-rabbitmq`_
            ) as broker:
                await broker.join()
 
-And the caller side might be written like this:
+调用方可以像这样编写：
 
 .. code-block:: python
 
@@ -412,9 +390,9 @@ And the caller side might be written like this:
 `FastStream`_
 ~~~~~~~~~~~~~~
 
-**FastStream** is a powerful and easy-to-use Python library for building asynchronous services that interact with event streams..
+**FastStream** 是一个强大且易于使用的 Python 库，用于构建与事件流交互的异步服务。
 
-If you need no deep dive into **RabbitMQ** details, you can use more high-level **FastStream** interfaces:
+如果你不需要深入了解 **RabbitMQ** 的细节，可以使用更高层次的 **FastStream** 接口：
 
 .. code-block:: python
 
@@ -435,16 +413,16 @@ If you need no deep dive into **RabbitMQ** details, you can use more high-level 
            await broker.publish(1, "user", rpc=True)
        ) ==  "user-1: created"
 
-Also, **FastStream** validates messages by **pydantic**, generates your project **AsyncAPI** spec, supports In-Memory testing, RPC calls, and more.
+此外，**FastStream** 通过 **pydantic** 验证消息，生成你的项目 **AsyncAPI** 规范，支持内存测试、RPC 调用等功能。
 
-In fact, it is a high-level wrapper on top of **aio-pika**, so you can use both of these libraries' advantages at the same time.
+实际上，它是 **aio-pika** 之上的高层包装器，因此你可以同时利用这两个库的优势。
 
 `python-socketio`_
 ~~~~~~~~~~~~~~~~~~
 
-`Socket.IO`_ is a transport protocol that enables real-time bidirectional event-based communication between clients (typically, though not always, web browsers) and a server. This package provides Python implementations of both, each with standard and asyncio variants.
+`Socket.IO`_ 是一种传输协议，能够实现客户端（通常是网页浏览器，但不局限于此）与服务器之间的实时双向事件驱动通信。此包提供了两种 Python 实现，分别为标准和 asyncio 版本。
 
-Also this package is suitable for building messaging services over **RabbitMQ** via **aio-pika** adapter:
+此外，此包还适合通过 **aio-pika** 适配器构建基于 **RabbitMQ** 的消息服务：
 
 .. code-block:: python
 
@@ -462,7 +440,7 @@ Also this package is suitable for building messaging services over **RabbitMQ** 
    if __name__ == '__main__':
        web.run_app(app)
 
-And a client is able to call `chat_message` the following way:
+客户端可以通过以下方式调用 `chat_message`:
 
 .. code-block:: python
 
@@ -478,12 +456,12 @@ And a client is able to call `chat_message` the following way:
    if __name__ == '__main__':
        asyncio.run(main())
 
-The `taskiq`_ and the `taskiq-aio-pika`_
+`taskiq`_ 和 `taskiq-aio-pika`_
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-**Taskiq** is an asynchronous distributed task queue for python. The project takes inspiration from big projects such as Celery and Dramatiq. But taskiq can send and run both the sync and async functions.
+**Taskiq** 是一个用于 Python 的异步分布式任务队列。该项目受到大型项目如 Celery 和 Dramatiq 的启发，但 Taskiq 可以发送和运行同步与异步函数。
 
-The library provides you with **aio-pika** broker for running tasks too.
+该库还为运行任务提供了 **aio-pika** 代理。
 
 .. code-block:: python
 
@@ -502,9 +480,9 @@ The library provides you with **aio-pika** broker for running tasks too.
 `Rasa`_
 ~~~~~~~
 
-With over 25 million downloads, Rasa Open Source is the most popular open source framework for building chat and voice-based AI assistants.
+拥有超过 2500 万次下载，Rasa Open Source 是构建聊天和语音 AI 助手的最流行的开源框架。
 
-With **Rasa**, you can build contextual assistants on:
+使用 **Rasa**，你可以在以下平台上构建上下文助手：
 
 * Facebook Messenger
 * Slack
@@ -516,22 +494,23 @@ With **Rasa**, you can build contextual assistants on:
 * Telegram
 * Twilio
 
-Your own custom conversational channels or voice assistants as:
+你还可以创建自定义的对话渠道或语音助手，如：
 
 * Alexa Skills
 * Google Home Actions
 
-**Rasa** helps you build contextual assistants capable of having layered conversations with lots of back-and-forth. In order for a human to have a meaningful exchange with a contextual assistant, the assistant needs to be able to use context to build on things that were previously discussed – **Rasa** enables you to build assistants that can do this in a scalable way.
+**Rasa** 帮助你构建能够进行多层次对话的上下文助手，实现丰富的互动。为了让人类与上下文助手进行有意义的交流，助手需要能够利用上下文，基于之前讨论的内容进行扩展——**Rasa** 使你能够以可扩展的方式构建能够实现这一目标的助手。
 
-And it also uses **aio-pika** to interact with **RabbitMQ** deep inside!
+它还使用 **aio-pika** 来与 **RabbitMQ** 深度交互！
 
-Versioning
+版本控制
 ==========
 
-This software follows `Semantic Versioning`_
+本软件遵循 `语义化版本控制`_
 
 
 .. _Semantic Versioning: http://semver.org/
+.. _语义化版本控制: http://semver.org/
 .. _faststream: https://github.com/airtai/faststream
 .. _patio: https://github.com/patio-python/patio
 .. _patio-rabbitmq: https://github.com/patio-python/patio-rabbitmq
