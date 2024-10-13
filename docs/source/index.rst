@@ -410,7 +410,7 @@ And the caller side might be written like this:
 
 
 `FastStream`_
-~~~~~~~~~
+~~~~~~~~~~~~~~
 
 **FastStream** is a powerful and easy-to-use Python library for building asynchronous services that interact with event streams..
 
