@@ -2,76 +2,61 @@
 .. _pull request: https://github.com/mosquito/aio-pika/compare
 .. _aio-pika: https://github.com/mosquito/aio-pika
 .. _official tutorial: https://www.rabbitmq.com/tutorials/tutorial-two-python.html
+.. _官方教程: https://www.rabbitmq.com/tutorials/tutorial-two-python.html
 .. _work-queues:
 
-Work Queues
+工作队列
 ===========
 
 .. warning::
 
-   This is a beta version of the port from `official tutorial`_. Please when you found an
-   error create `issue`_ or `pull request`_ for me.
+   这是从 `官方教程`_ 移植的测试版。如果你发现错误，请为我创建 `issue`_ 或 `pull request`_。
 
-   This implementation is a part of official tutorial.
-   Since version 1.7.0 `aio-pika`_ has :ref:`patterns submodule <patterns-worker>`.
+   该实现是官方教程的一部分。
+   自版本 1.7.0 起， `aio-pika`_ 提供了 :ref:`patterns 子模块 <patterns-worker>`。
 
-   You might use :class:`aio_pika.patterns.Master` for real projects.
-
-.. note::
-   Using the `aio-pika`_ async Python client
+   你可以在实际项目中使用 :class:`aio_pika.patterns.Master`。
 
 .. note::
 
-   **Prerequisites**
+   使用 `aio-pika`_ 异步 Python 客户端。
 
-   This tutorial assumes RabbitMQ is installed_ and running on localhost on standard port (`5672`).
-   In case you use a different host, port or credentials, connections settings would require adjusting.
+.. note::
+   
+   **先决条件**
 
-   .. _installed: https://www.rabbitmq.com/download.html
+   本教程假设 RabbitMQ `已安装`_ 并在标准端口 (`5672`) 上在本地主机上运行。
+   如果你使用不同的主机、端口或凭据，需要调整连接设置。
 
-   **Where to get help**
+   .. _已安装: https://www.rabbitmq.com/download.html
 
-   If you're having trouble going through this tutorial you can `contact us`_ through the mailing list.
+   **寻求帮助**
 
-   .. _contact us: https://groups.google.com/forum/#!forum/rabbitmq-users
+   如果你在完成本教程时遇到问题，可以通过邮件列表 `联系我们`_。
+
+   .. _联系我们: https://groups.google.com/forum/#!forum/rabbitmq-users
 
 .. image:: /_static/tutorial/python-two.svg
    :align: center
 
-In the :ref:`first tutorial <introduction>` we wrote programs to send and receive messages
-from a named queue. In this one we'll create a Work Queue that will be used to distribute
-time-consuming tasks among multiple workers.
+在 :ref:`第一个教程 <introduction>` 中，我们编写了从命名队列发送和接收消息的程序。在本教程中，我们将创建一个工作队列，用于在多个工作者之间分配耗时的任务。
 
-The main idea behind Work Queues (aka: *Task Queues*) is to avoid doing a resource-intensive
-task immediately and having to wait for it to complete. Instead we schedule the task to be
-done later. We encapsulate a task as a message and send it to the queue. A worker process
-running in the background will pop the tasks and eventually execute the job. When you
-run many workers the tasks will be shared between them.
+工作队列（也称为 *任务队列(Task Queues)*）的主要思想是避免立即执行资源密集型任务并等待其完成。相反，我们将任务安排在稍后完成。我们将任务封装为消息并发送到队列。后台运行的工作进程将弹出任务并最终执行工作。当运行多个工作者时，任务将被它们共享。
 
-This concept is especially useful in web applications where it's impossible to handle a
-complex task during a short HTTP request window.
+这个概念在 Web 应用程序中特别有用，因为在短暂的 HTTP 请求窗口内处理复杂任务几乎是不可能的。
 
-Preparation
+准备工作
 +++++++++++
 
-In the previous part of this tutorial we sent a message containing `"Hello World!"`.
-Now we'll be sending strings that stand for complex tasks. We don't have a real-world
-task, like images to be resized or pdf files to be rendered, so let's fake it by just
-pretending we're busy - by using the `asyncio.sleep()` function. We'll take the number of dots
-in the string as its complexity; every dot will account for one second of "work".
-For example, a fake task described by Hello... will take three seconds.
+在本教程的前一部分中，我们发送了一条包含 `"Hello World!"` 的消息。现在我们将发送表示复杂任务的字符串。由于我们没有真实的任务（例如要调整大小的图像或要渲染的 PDF 文件），我们将通过使用 `asyncio.sleep()` 函数来假装自己很忙。我们将字符串中的点的数量视为其复杂性；每个点将代表一秒钟的“工作”。例如，由 `Hello...` 描述的虚假任务将耗时三秒。
 
-We will slightly modify the send.py code from our previous example, to allow arbitrary
-messages to be sent from the command line. This program will schedule tasks to our work
-queue, so let's name it *new_task.py*:
+我们将稍微修改之前示例中的 *send.py* 代码，以允许从命令行发送任意消息。这个程序将任务调度到我们的工作队列中，因此我们将其命名为 *new_task.py*:
 
 .. literalinclude:: examples/2-work-queues/new_task_initial.py
    :language: python
    :pyobject: main
 
-Our old receive.py script also requires some changes: it needs to fake a second of work
-for every dot in the message body. It will pop messages from the queue and perform the task,
-so let's call it *tasks_worker.py*:
+我们的旧 *receive.py* 脚本也需要一些更改：它需要为消息体中的每个点假装工作一秒。它将从队列中弹出消息并执行任务，因此我们将其称为 *tasks_worker.py*:
 
 .. code-block:: python
 
@@ -81,17 +66,14 @@ so let's call it *tasks_worker.py*:
         print(" [x] Done")
 
 
-Round-robin dispatching
-+++++++++++++++++++++++
+轮询调度(Round-robin dispatching)
+++++++++++++++++++++++++++++++++++
 
-One of the advantages of using a Task Queue is the ability to easily parallelise work.
-If we are building up a backlog of work, we can just add more workers and that way, scale easily.
+使用任务队列的一个优点是能够轻松地并行化工作。如果我们积累了大量待处理工作，可以简单地增加更多工作者，从而轻松扩展。
 
-First, let's try to run two *tasks_worker.py* scripts at the same time. They will
-both get messages from the queue, but how exactly? Let's see.
+首先，让我们尝试同时运行两个 *tasks_worker.py* 脚本。它们将从队列中获取消息，但具体是如何获取的呢？让我们来看看。
 
-You need three consoles open. Two will run the ``tasks_worker.py`` script.
-These consoles will be our two consumers - C1 and C2.
+你需要打开三个控制台。两个将运行 ``tasks_worker.py`` 脚本。这两个控制台将是我们的两个消费者 - C1 和 C2。
 
 ::
 
@@ -103,7 +85,7 @@ These consoles will be our two consumers - C1 and C2.
     shell2$ python tasks_worker.py
     [*] Waiting for messages. To exit press CTRL+C
 
-In the third one we'll publish new tasks. Once you've started the consumers you can publish a few messages::
+在第三个控制台中，我们将发布新任务。启动消费者后，可以发布几条消息::
 
     shell3$ python new_task.py First message.
     shell3$ python new_task.py Second message..
@@ -111,7 +93,7 @@ In the third one we'll publish new tasks. Once you've started the consumers you 
     shell3$ python new_task.py Fourth message....
     shell3$ python new_task.py Fifth message.....
 
-Let's see what is delivered to our workers::
+让我们看看分发给我们工作者的消息::
 
     shell1$ python tasks_worker.py
      [*] Waiting for messages. To exit press CTRL+C
@@ -126,37 +108,22 @@ Let's see what is delivered to our workers::
      [x] Received 'Second message..'
      [x] Received 'Fourth message....'
 
-By default, RabbitMQ will send each message to the next consumer, in sequence.
-On average every consumer will get the same number of messages. This way
-of distributing messages is called round-robin. Try this out with three or more workers.
+默认情况下，RabbitMQ 会按顺序将每条消息发送到下一个消费者。平均而言，每个消费者将收到相同数量的消息。这种分发消息的方式称为轮询调度。尝试用三个或更多工作者进行测试。
 
-Message acknowledgment
+消息确认
 ++++++++++++++++++++++
 
-Doing a task can take a few seconds. You may wonder what happens if one of the consumers starts a
-long task and dies with it only partly done. With our current code once RabbitMQ delivers message
-to the customer it immediately removes it from memory. In this case, if you kill a worker we will
-lose the message it was just processing. We'll also lose all the messages that were dispatched to
-this particular worker but were not yet handled.
+执行任务可能需要几秒钟。你可能会想，如果其中一个消费者开始执行一个长任务并且在任务未完成时崩溃，会发生什么？在我们当前的代码中，一旦RabbitMQ将消息发送给消费者，它会立即从内存中删除该消息。在这种情况下，如果你杀掉一个工作者，我们将丢失它刚处理的消息，还会失去所有分配给该特定工作者但尚未处理的消息。
 
-But we don't want to lose any tasks. If a worker dies, we'd like the task to be delivered to another worker.
+但我们不希望丢失任何任务。如果一个工作者崩溃，我们希望将任务交给另一个工作者。
 
-In order to make sure a message is never lost, RabbitMQ supports message acknowledgments.
-An ack(nowledgement) is sent back from the consumer to tell RabbitMQ that a particular message
-had been received, processed and that RabbitMQ is free to delete it.
+为了确保消息不会丢失，RabbitMQ支持消息确认。确认（acknowledgment）是从消费者发送回RabbitMQ的信号，告诉它某条消息已被接收和处理，可以安全删除。
 
-If a consumer dies (its channel is closed, connection is closed, or TCP connection is lost)
-without sending an ack, RabbitMQ will understand that a message wasn't processed fully and
-will re-queue it. If there are other consumers online at the same time, it will then quickly
-redeliver it to another consumer. That way you can be sure that no message is lost, even if
-the workers occasionally die.
+如果一个消费者在未发送确认的情况下崩溃（例如，通道关闭、连接关闭或TCP连接丢失），RabbitMQ将理解该消息未被完全处理，并会将其重新排队。如果同时有其他消费者在线，它将迅速将消息重新投递给其他消费者。这样你可以确保即使工作者偶尔崩溃，也不会丢失任何消息。
 
-There aren't any message timeouts; RabbitMQ will redeliver the message when the consumer dies.
-It's fine even if processing a message takes a very, very long time.
+RabbitMQ没有消息超时；当消费者崩溃时，RabbitMQ将重新投递该消息。即使处理消息的时间非常长，这也是可以的。
 
-Message acknowledgments are turned on by default. In previous examples we explicitly turned
-them off via the `no_ack=True` flag. It's time to remove this flag and send a proper acknowledgment
-from the worker, once we're done with a task.
+消息确认默认是启用的。在之前的示例中，我们通过 `no_ack=True` 标志显式地将其关闭。现在是时候移除这个标志，并在工作者完成任务后发送正确的确认了。
 
 .. code-block:: python
 
@@ -173,29 +140,24 @@ from the worker, once we're done with a task.
     # Start listening the queue with name 'hello'
         await queue.consume(on_message)
 
-or using special context processor:
+或者使用特殊的上下文处理器：
 
 .. literalinclude:: examples/2-work-queues/tasks_worker.py
    :language: python
    :lines: 7-11
 
 
-If context processor will catch an exception, the message will be returned to the queue.
+如果上下文处理器捕获到异常，该消息将返回到队列中。
 
-Using this code we can be sure that even if you kill a worker using CTRL+C while
-it was processing a message, nothing will be lost. Soon after the worker dies all
-unacknowledged messages will be redelivered.
+使用这段代码，我们可以确保即使在处理消息时使用CTRL+C杀掉工作者，也不会丢失任何消息。工作者崩溃后，所有未确认的消息将被重新投递。
 
 .. note::
-    **Forgotten acknowledgment**
+    
+    **遗忘确认**
 
-    It's a common mistake to miss the ack. It's an easy error, but the
-    consequences are serious. Messages will be redelivered when your client quits
-    (which may look like random redelivery), but RabbitMQ will eat more and more
-    memory as it won't be able to release any unacked messages.
+    漏掉确认是一个常见错误。这是一个简单的错误，但后果严重。当客户端退出时，消息会被重新投递（这可能看起来像随机重新投递），但RabbitMQ会消耗越来越多的内存，因为它无法释放任何未确认的消息。
 
-    In order to debug this kind of mistake you can use rabbitmqctl to print the
-    messages_unacknowledged field::
+    为了调试这种错误，你可以使用`rabbitmqctl`打印`messages_unacknowledged`字段::
 
         $ sudo rabbitmqctl list_queues name messages_ready messages_unacknowledged
         Listing queues ...
@@ -203,38 +165,30 @@ unacknowledged messages will be redelivered.
         ...done.
 
 
-Message durability
+消息持久性
 ++++++++++++++++++
 
-We have learned how to make sure that even if the consumer dies, the task isn't lost.
-But our tasks will still be lost if RabbitMQ server stops.
+我们已经学习了如何确保即使消费者崩溃，任务也不会丢失。但如果RabbitMQ服务器停止运行，我们的任务仍然会丢失。
 
-When RabbitMQ quits or crashes it will forget the queues and messages unless you tell it not to.
-Two things are required to make sure that messages aren't lost: we need to mark both the queue and messages as durable.
+当RabbitMQ退出或崩溃时，它会忘记队列和消息，除非你告诉它不要丢失。为了确保消息不丢失，我们需要将队列和消息都标记为持久。
 
-First, we need to make sure that RabbitMQ will never lose our queue. In order to do so,
-we need to declare it as *durable*:
+首先，我们需要确保RabbitMQ永远不会丢失我们的队列。为此，我们需要将其声明为*持久*：
 
 .. code-block:: python
 
    queue = await channel.declare_queue("hello", durable=True)
 
 
-Although this command is correct by itself, it won't work in our setup.
-That's because we've already defined a queue called hello which is not durable.
-RabbitMQ doesn't allow you to redefine an existing queue with different parameters
-and will return an error to any program that tries to do that.
-But there is a quick workaround - let's declare a queue with different name, for example task_queue:
+虽然这条命令本身是正确的，但在我们的设置中无法工作。这是因为我们已经定义了一个名为hello的非持久队列。RabbitMQ不允许你用不同的参数重新定义一个已存在的队列，任何尝试这样做的程序都会返回错误。但有一个快速的解决方法——我们可以声明一个不同名称的队列，例如task_queue：
 
 .. literalinclude:: examples/2-work-queues/tasks_worker.py
    :language: python
    :lines: 23-27
 
-This queue_declare change needs to be applied to both the producer and consumer code.
+这个`queue_declare`的更改需要在生产者和消费者代码中都应用。
 
-At that point we're sure that the task_queue queue won't be lost even if RabbitMQ restarts.
-Now we need to mark our messages as persistent - by supplying a delivery_mode
-property with a value `PERSISTENT` (see enum :class:`aio_pika.DeliveryMode`).
+此时我们可以确定，即使RabbitMQ重启，task_queue队列也不会丢失。
+现在，我们需要将我们的消息标记为持久，通过提供一个值为 `PERSISTENT` 的 `delivery_mode` 属性（参见枚举：:class:`aio_pika.DeliveryMode` ）。
 
 .. literalinclude:: examples/2-work-queues/new_task.py
    :language: python
@@ -242,43 +196,36 @@ property with a value `PERSISTENT` (see enum :class:`aio_pika.DeliveryMode`).
 
 .. note::
 
-   **Note on message persistence**
+   **关于消息持久性**
 
-   Marking messages as persistent doesn't fully guarantee that a message won't be lost.
-   Although it tells RabbitMQ to save the message to disk, there is still a short time
-   window when RabbitMQ has accepted a message and hasn't saved it yet. Also,
-   RabbitMQ doesn't do fsync(2) for every message -- it may be just saved to cache and
-   not really written to the disk. The persistence guarantees aren't strong, but
-   it's more than enough for our simple task queue. If you need a stronger guarantee
-   then you can use `publisher confirms`_.
+   将消息标记为持久并不完全保证消息不会丢失。
+   虽然这告诉RabbitMQ将消息保存到磁盘，但在RabbitMQ接受消息后尚未保存之前，仍然存在短暂的时间窗口。
+   此外，RabbitMQ并不会对每条消息执行 fsync(2)操作 —— 它可能只是将消息保存到缓存中，而并非真正写入磁盘。
+   持久性保证并不强，但对于我们简单的任务队列来说已经足够。如果你需要更强的保证，可以使用 `发布者确认`_ 。
 
-   `aio-pika`_ supports `publisher confirms`_ out of the box.
+   `aio-pika`_ 支持 `发布者确认`_ 功能，开箱即用。
 
-   .. _publisher confirms: https://www.rabbitmq.com/confirms.html
+   .. _发布者确认: https://www.rabbitmq.com/confirms.html
 
 
-Fair dispatch
+公平分配
 +++++++++++++
 
-You might have noticed that the dispatching still doesn't work exactly as we want.
-For example in a situation with two workers, when all odd messages are heavy and
-even messages are light, one worker will be constantly busy and the other one will
-do hardly any work. Well, RabbitMQ doesn't know anything about that and will still
-dispatch messages evenly.
+你可能已经注意到，消息的分发仍然不完全符合我们的期望。
+例如，在有两个工作者的情况下，当所有奇数消息都很重而偶数消息很轻时，一个工作者将会一直忙碌，
+而另一个几乎没有任何工作。RabbitMQ对此一无所知，仍然会平均分配消息。
 
-This happens because RabbitMQ just dispatches a message when the message enters
-the queue. It doesn't look at the number of unacknowledged messages for a consumer.
-It just blindly dispatches every n-th message to the n-th consumer.
+这种情况发生是因为RabbitMQ在消息进入队列时就分发消息。
+它并不会考虑消费者未确认的消息数量，而是盲目地将每第n条消息分发给第n个消费者。
 
 
 .. image:: /_static/tutorial/prefetch-count.svg
    :align: center
 
 
-In order to defeat that we can use the basic.qos method with the `prefetch_count=1` setting.
-This tells RabbitMQ not to give more than one message to a worker at a time. Or,
-in other words, don't dispatch a new message to a worker until it has processed and
-acknowledged the previous one. Instead, it will dispatch it to the next worker that is not still busy.
+为了改善这一点，我们可以使用 `basic.qos` 方法，并设置 `prefetch_count=1` 。
+这告诉RabbitMQ不要一次性给一个工作者超过一条消息。
+换句话说，在一个工作者处理并确认之前的消息之前，不要向其分发新消息。相反，它会将消息分发给下一个没有在忙碌的工作者。
 
 .. literalinclude:: examples/2-work-queues/tasks_worker.py
    :language: python
@@ -286,32 +233,30 @@ acknowledged the previous one. Instead, it will dispatch it to the next worker t
 
 
 .. note::
-    **Note about queue size**
 
-    If all the workers are busy, your queue can fill up. You will want to keep an eye
-    on that, and maybe add more workers, or have some other strategy.
+    **关于队列大小的说明**
+
+    如果所有工作者都在忙，你的队列可能会填满。你需要密切关注这一点，并可能考虑增加更多工作者，或者采取其他策略。
 
 
-Putting it all together
+综合起来
 +++++++++++++++++++++++
 
-Final code of our :download:`new_task.py <examples/2-work-queues/new_task.py>` script:
+我们 :download:`new_task.py <examples/2-work-queues/new_task.py>` 脚本的最终代码:
 
 .. literalinclude:: examples/2-work-queues/new_task.py
    :language: python
 
-And our :download:`tasks_worker.py <examples/2-work-queues/tasks_worker.py>`:
+以及我们的 :download:`tasks_worker.py <examples/2-work-queues/tasks_worker.py>`:
 
 .. literalinclude:: examples/2-work-queues/tasks_worker.py
    :language: python
 
-Using message acknowledgments and prefetch_count you can set up a work queue. The durability
-options let the tasks survive even if RabbitMQ is restarted.
+通过使用消息确认和 `prefetch_count`，你可以设置一个工作队列。而持久性选项确保即使RabbitMQ重启，任务也不会丢失。
 
-Now we can move on to :ref:`tutorial 3 <publish-subscribe>` and learn how to deliver the
-same message to many consumers.
+现在我们可以继续学习 :ref:`第三个教程 <publish-subscribe>`，了解如何将相同的消息传递给多个消费者。
 
 
 .. note::
 
-    This material was adopted from `official tutorial`_ on **rabbitmq.org**.
+    这部分内容取自  **rabbitmq.org** 上的 `官方教程`_ .
