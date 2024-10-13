@@ -44,7 +44,7 @@
 * 使用 `connect_robust` 实现透明的自动重连，完全状态恢复（例如，声明的队列或交换机、消费状态和绑定）。
 * 兼容 Python 3.6 及以上版本。
 * 对于 Python 3.5 用户，可以使用 `aio-pika<7`。
-* 透明的 `publisher confirms`_ 支持。
+* 透明的 `publisher confirms`_ (发布确认)支持。
 * 支持 `Transactions`_ (事物)。
 * 完全的类型提示覆盖。
 
@@ -91,7 +91,7 @@ URL 是配置连接的支持方式。为了自定义连接行为，您可以像�
 
       此选项由 ``asyncio.DefaultEventLoopPolicy`` 支持，并在 Python 3.8 及以后版本可用。
 
-* ``happy_eyeballs_delay`` (``float`` 类似) - 如果给定，则为此连接启用 Happy Eyeballs。它应为一个浮点数，表示在开始下一个并行连接尝试之前，等待当前连接尝试完成的时间（以秒为单位）。这被称为 `RFC 8305` 中定义的“连接尝试延迟”。RFC 推荐的合理默认值是 ``0.25``（250 毫秒）。
+* ``happy_eyeballs_delay`` (``float`` 类似) - 如果给定，则为此连接启用 Happy Eyeballs。它应为一个浮点数,表示在开始下一个并行连接尝试之前，等待当前连接尝试完成的时间（以秒为单位）。这被称为 `RFC 8305` 中定义的“连接尝试延迟”。RFC 推荐的合理默认值是 ``0.25`` (250 毫秒)。
 
   .. note::
 
@@ -279,8 +279,7 @@ Simple 消费者:
 
     async def on_message(message):
         """
-        on_message doesn't necessarily have to be defined as async.
-        Here it is to show that it's possible.
+        on_message 并不一定要定义为异步函数。这里展示的是它可以是异步的可能性。
         """
         print(f" [x] Received message {message!r}")
         print(f"Message body is: {message.body!r}")
@@ -289,13 +288,13 @@ Simple 消费者:
         print("After sleep!")
 
     async def main():
-        # Perform connection
+        # 创建连接
         connection = await aiormq.connect("amqp://guest:guest@localhost/")
 
-        # Creating a channel
+        # 创建1个通道
         channel = await connection.channel()
 
-        # Declaring queue
+        # 声明队列
         declare_ok = await channel.queue_declare('helo')
         consume_ok = await channel.basic_consume(
             declare_ok.queue, on_message, no_ack=True
@@ -321,14 +320,14 @@ Simple 发布者:
         global MESSAGE
         body = b'Hello World!'
 
-        # Perform connection
+        # 创建连接
         connection = await aiormq.connect("amqp://guest:guest@localhost//")
 
-        # Creating a channel
+        # 创建1个通道
         channel = await connection.channel()
         declare_ok = await channel.queue_declare("hello", auto_delete=True)
 
-        # Sending the message
+        # 发送消息
         await channel.basic_publish(body, routing_key='hello')
         print(f" [x] Sent {body}")
 
