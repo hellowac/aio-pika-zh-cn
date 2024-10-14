@@ -44,12 +44,12 @@
 
 为了说明 RPC 服务如何使用，我们将创建一个简单的客户端类。它将暴露一个名为 `call` 的方法，该方法发送 RPC 请求并阻塞，直到收到答案：
 
-```python
-async def main():
-    fibonacci_rpc = FibonacciRpcClient()
-    result = await fibonacci_rpc.call(4)
-    print("fib(4) is %r" % result)
-```
+.. code-block:: python
+
+    async def main():
+        fibonacci_rpc = FibonacciRpcClient()
+        result = await fibonacci_rpc.call(4)
+        print("fib(4) is %r" % result)
 
 .. note::
 
