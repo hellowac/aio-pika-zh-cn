@@ -1,131 +1,110 @@
 .. _issue: https://github.com/mosquito/aio-pika/issues
 .. _pull request: https://github.com/mosquito/aio-pika/compare
 .. _aio-pika: https://github.com/mosquito/aio-pika
-.. _official tutorial: https://www.rabbitmq.com/tutorials/tutorial-four-python.html
+.. _官方教程: https://www.rabbitmq.com/tutorials/tutorial-four-python.html
 .. _routing:
 
-Routing
+路由
 =======
 
 .. warning::
 
-    This is a beta version of the port from `official tutorial`_. Please when you found an
-    error create `issue`_ or `pull request`_ for me.
+    这是从 `官方教程`_ 移植的测试版本。如果你发现了错误，请为我创建 `issue`_ 或 `pull request`_。
 
 
 .. note::
-    Using the `aio-pika`_ async Python client
+    
+    使用 `aio-pika`_ 异步 Python 客户端。
 
 .. note::
 
-    **Prerequisites**
+    **前提条件**
 
-    This tutorial assumes RabbitMQ is installed_ and running on localhost on standard port (`5672`).
-    In case you use a different host, port or credentials, connections settings would require adjusting.
+    本教程假设 RabbitMQ `已安装`_ 并在本地以标准端口（`5672`）运行。
+    如果你使用的是不同的主机、端口或凭据，则需要调整连接设置。
 
-    .. _installed: https://www.rabbitmq.com/download.html
+    .. _已安装: https://www.rabbitmq.com/download.html
 
-    **Where to get help**
+    **寻求帮助的途径**
 
-    If you're having trouble going through this tutorial you can `contact us`_ through the mailing list.
+    如果在完成本教程时遇到困难，可以通过邮件列表 `联系我们`_ 。
 
-    .. _contact us: https://groups.google.com/forum/#!forum/rabbitmq-users
-
-
-In the :ref:`previous tutorial <publish-subscribe>` we built a simple logging system.
-We were able to broadcast log messages to many receivers.
-
-In this tutorial we're going to add a feature to it — we're going to make it possible to subscribe only to a subset
-of the messages. For example, we will be able to direct only critical error messages to the log
-file (to save disk space), while still being able to print all of the log messages on the console.
+    .. _联系我们: https://groups.google.com/forum/#!forum/rabbitmq-users
 
 
-Bindings
+在 :ref:`上一教程 <publish-subscribe>` 中，我们构建了一个简单的日志系统，能够将日志消息广播给多个接收者。
+
+在本教程中，我们将为其添加一个功能——我们将使订阅只接收部分消息成为可能。例如，我们可以将只有关键错误消息定向到日志文件（以节省磁盘空间），同时仍然能够在控制台上打印所有日志消息。
+
+
+绑定
 ++++++++
 
-In previous examples we were already creating bindings. You may recall code like:
+在之前的示例中，我们已经创建了绑定。你可能还记得类似的代码：
 
 .. code-block:: python
 
     async def main():
         ...
 
-        # Binding the queue to the exchange
+        # 将队列绑定到交换机
         await queue.bind(logs_exchange)
 
     ...
 
 
-A binding is a relationship between an exchange and a queue. This can be simply read as:
-the queue is interested in messages from this exchange.
+绑定是交换机和队列之间的关系。可以简单理解为：队列对来自该交换机的消息感兴趣。
 
-Bindings can take an extra *routing_key* parameter. To avoid the confusion with a
-*basic_publish* parameter we're going to call it a *binding key*.
-This is how we could create a binding with a key:
+绑定可以接受一个额外的 *routing_key* 参数。为了避免与 *basic_publish* 参数混淆，我们将其称为 *绑定键*。以下是如何使用键创建绑定的示例：
 
 .. code-block:: python
 
     async def main():
         ...
 
-        # Binding the queue to the exchange
+        # 将队列绑定到交换机
         await queue.bind(logs_exchange,
                          routing_key="black")
 
     ...
 
 
-The meaning of a binding key depends on the exchange type. The *fanout* exchanges, which we
-used previously, simply ignored its value.
+*绑定键* 的含义取决于交换机的类型。我们之前使用的 *扇出型* 交换机会简单地忽略这个值。
 
-Direct exchange
+直连交换机  
 +++++++++++++++
 
-Our logging system from the previous tutorial broadcasts all messages to all consumers.
-We want to extend that to allow filtering messages based on their severity. For example
-we may want the script which is writing log messages to the disk to only receive critical
-errors, and not waste disk space on warning or info log messages.
+我们在前一教程中的日志系统将所有消息广播给所有消费者。现在我们想扩展功能，允许根据消息的严重性进行过滤。例如，我们可能希望将日志消息写入磁盘的脚本只接收关键错误，而不浪费磁盘空间存储警告或信息日志消息。
 
-We were using a fanout exchange, which doesn't give us too much flexibility — it's only
-capable of mindless broadcasting.
+我们之前使用的是扇出型交换机，它的灵活性有限——只能进行无脑的广播。
 
-We will use a direct exchange instead. The routing algorithm behind a direct exchange
-is simple — a message goes to the queues whose binding key exactly matches the routing key of the message.
+我们将改用直连交换机。直连交换机背后的路由算法很简单——消息会被路由到绑定键与消息的路由键完全匹配的队列。
 
-To illustrate that, consider the following setup:
+举个例子，看看以下设置：
 
-.. image:: /_static/tutorial/direct-exchange.svg
+.. image:: /_static/tutorial/direct-exchange.svg  
    :align: center
 
-In this setup, we can see the *direct* exchange X with two queues bound to it. The first queue is
-bound with binding key *orange*, and the second has two bindings, one with
-binding key *black* and the other one with *green*.
+在这个设置中，我们看到直连交换机 X 与两个队列绑定。第一个队列的绑定键是 *orange*，第二个队列有两个绑定，一个绑定键为 *black*，另一个为 *green*。
 
-In such a setup a message published to the exchange with a routing key *orange*
-will be routed to queue *Q1*. Messages with a routing key of *black* or *green* will go to *Q2*.
-All other messages will be discarded.
+在这样的设置中，带有路由键 *orange* 的消息将被路由到队列 *Q1*。带有路由键 *black* 或 *green* 的消息将被路由到 *Q2*。所有其他消息将被丢弃。
 
 
-Multiple bindings
+多重绑定  
 +++++++++++++++++
 
-.. image:: /_static/tutorial/direct-exchange-multiple.svg
+.. image:: /_static/tutorial/direct-exchange-multiple.svg  
    :align: center
 
-It is perfectly legal to bind multiple queues with the same binding key. In our
-example we could add a binding between *X* and *Q1* with binding key *black*. In that
-case, the *direct* exchange will behave like fanout and will broadcast the message
-to all the matching queues. A message with routing key black will be delivered to both *Q1* and *Q2*.
+将多个队列与相同的绑定键绑定是完全合法的。在我们的示例中，我们可以添加一个绑定，将交换机 *X* 与队列 *Q1* 通过绑定键 *black* 绑定。在这种情况下，直连交换机将像扇出交换机一样工作，并将消息广播到所有匹配的队列。带有路由键 *black* 的消息将会同时被发送到 *Q1* 和 *Q2*。
 
 
-Emitting logs
+发送日志  
 +++++++++++++
 
-We'll use this model for our logging system. Instead of *fanout* we'll send messages to a *direct* exchange.
-We will supply the log severity as a *routing key*. That way the receiving script will be able to select
-the severity it wants to receive. Let's focus on emitting logs first.
+我们将使用这种模型来构建日志系统。与使用 *fanout* 不同，我们会将消息发送到 *direct* 交换机。我们将日志的严重性作为 *routing key* 提供，这样接收脚本就可以选择它想要接收的严重性。首先让我们专注于发送日志。
 
-Like always we need to create an exchange first:
+像往常一样，我们首先需要创建一个交换机：
 
 .. code-block:: python
 
@@ -138,7 +117,7 @@ Like always we need to create an exchange first:
             'logs', ExchangeType.DIRECT
         )
 
-And we're ready to send a message:
+现在我们可以发送消息了：
 
 .. code-block:: python
 
@@ -150,72 +129,67 @@ And we're ready to send a message:
             routing_key=severity,
         )
 
-To simplify things we will assume that `'severity'` can be one of `'info'`, `'warning'`, `'error'`.
+为简化起见，我们假设 `'severity'` 可以是 `'info'`、`'warning'` 或 `'error'` 之一。
 
-Subscribing
+订阅  
 +++++++++++
 
-Receiving messages will work just like in the previous tutorial, with one exception - we're
-going to create a new binding for each severity we're interested in.
-
+接收消息的方式与之前的教程相同，唯一的例外是——我们将为每个感兴趣的严重性创建一个新的绑定。
 
 .. code-block:: python
 
     async def main():
         ...
 
-        # Declaring queue
+        # 声明队列
         queue = await channel.declare_queue(exclusive=True)
 
-        # Binding the queue to the exchange
+        # 将队列绑定到交换机
         await queue.bind(direct_logs_exchange,
                          routing_key=severity)
 
     ...
 
 
-Putting it all together
+综合起来  
 +++++++++++++++++++++++
 
-.. image:: /_static/tutorial/python-four.svg
-   :align: center
+.. image:: /_static/tutorial/python-four.svg  
+   :align: center  
 
-The simplified code for :download:`receive_logs_direct_simple.py <examples/4-routing/receive_logs_direct_simple.py>`:
+简化后的代码 :download:`receive_logs_direct_simple.py <examples/4-routing/receive_logs_direct_simple.py>`:
 
-.. literalinclude:: examples/4-routing/receive_logs_direct_simple.py
-   :language: python
+.. literalinclude:: examples/4-routing/receive_logs_direct_simple.py  
+   :language: python  
 
-The code for :download:`emit_log_direct.py <examples/4-routing/emit_log_direct.py>`:
+代码 :download:`emit_log_direct.py <examples/4-routing/emit_log_direct.py>`:
 
-.. literalinclude:: examples/4-routing/emit_log_direct.py
-   :language: python
+.. literalinclude:: examples/4-routing/emit_log_direct.py  
+   :language: python  
 
 .. note::
 
-   The callback-based code for :download:`receive_logs_direct.py <examples/4-routing/receive_logs_direct.py>`:
+   基于回调的代码 :download:`receive_logs_direct.py <examples/4-routing/receive_logs_direct.py>`:
 
-   .. literalinclude:: examples/4-routing/receive_logs_direct.py
-      :language: python
+   .. literalinclude:: examples/4-routing/receive_logs_direct.py  
+      :language: python  
 
+如果您只想将 *'warning'* 和 *'error'*（而不是 *'info'*）日志消息保存到文件中，只需打开控制台并输入::
 
-If you want to save only *'warning'* and *'error'* (and not *'info'*) log messages to a file,
-just open a console and type::
+    $ python receive_logs_direct_simple.py warning error > logs_from_rabbit.log  
 
-    $ python receive_logs_direct_simple.py warning error > logs_from_rabbit.log
-
-If you'd like to see all the log messages on your screen, open a new terminal and do::
+如果您希望在屏幕上查看所有日志消息，请打开一个新终端并执行::
 
     $ python receive_logs_direct.py info warning error
-     [*] Waiting for logs. To exit press CTRL+C
+     [*] Waiting for logs. To exit press CTRL+C 
 
-And, for example, to emit an error log message just type::
+例如，要发送错误日志消息，只需输入::
 
-    $ python emit_log_direct.py error "Run. Run. Or it will explode."
+    $ python emit_log_direct.py error "Run. Run. Or it will explode."  
     [x] Sent 'error':'Run. Run. Or it will explode.'
 
-Move on to :ref:`tutorial 5 <topics>` to find out how to listen for messages based on a pattern.
-
+继续阅读 :ref:`教程 5 <topics>`，了解如何根据模式监听消息。
 
 .. note::
 
-    This material was adopted from `official tutorial`_ on **rabbitmq.org**.
+    该材料改编自 **rabbitmq.org** 上的 `官方教程`_ 。

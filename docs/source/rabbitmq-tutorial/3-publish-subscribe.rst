@@ -1,91 +1,77 @@
 .. _issue: https://github.com/mosquito/aio-pika/issues
 .. _pull request: https://github.com/mosquito/aio-pika/compare
 .. _aio-pika: https://github.com/mosquito/aio-pika
-.. _official tutorial: https://www.rabbitmq.com/tutorials/tutorial-three-python.html
+.. _官方教程: https://www.rabbitmq.com/tutorials/tutorial-three-python.html
 .. _publish-subscribe:
 
-Publish/Subscribe
+发布/订阅
 =================
 
 .. warning::
 
-    This is a beta version of the port from `official tutorial`_. Please when you found an
-    error create `issue`_ or `pull request`_ for me.
+    这是从 `官方教程`_ 移植的测试版本。如果你发现了错误，请为我创建 `issue`_ 或 `pull request`_。
 
 
 .. note::
-    Using the `aio-pika`_ async Python client
+    
+    使用 `aio-pika`_ 异步 Python 客户端。
 
 .. note::
 
-    **Prerequisites**
+    **前提条件**
 
-    This tutorial assumes RabbitMQ is installed_ and running on localhost on standard port (`5672`).
-    In case you use a different host, port or credentials, connections settings would require adjusting.
+    本教程假设 RabbitMQ `已安装`_ 并在本地以标准端口（`5672`）运行。
+    如果你使用的是不同的主机、端口或凭据，则需要调整连接设置。
 
-    .. _installed: https://www.rabbitmq.com/download.html
+    .. _已安装: https://www.rabbitmq.com/download.html
 
-    **Where to get help**
+    **寻求帮助的途径**
 
-    If you're having trouble going through this tutorial you can `contact us`_ through the mailing list.
+    如果在完成本教程时遇到困难，可以通过邮件列表 `联系我们`_ 。
 
-    .. _contact us: https://groups.google.com/forum/#!forum/rabbitmq-users
+    .. _联系我们: https://groups.google.com/forum/#!forum/rabbitmq-users
 
-In the :ref:`previous tutorial <work-queues>` we created a work queue. The assumption behind a work
-queue is that each task is delivered to exactly one worker. In this part we'll do something completely
-different — we'll deliver a message to multiple consumers. This pattern is known as "publish/subscribe".
+在 :ref:`上一个教程 <work-queues>` 中，我们创建了一个工作队列。工作队列的假设是每个任务会被分配给一个工人。在这一部分，我们将做一些完全不同的事情——我们将消息传递给多个消费者。这个模式被称为“发布/订阅”。
 
-To illustrate the pattern, we're going to build a simple logging system. It will consist of two
-programs — the first will emit log messages and the second will receive and print them.
+为了说明这个模式，我们将构建一个简单的日志系统。它将由两个程序组成——第一个程序将发出日志消息，第二个程序将接收并打印这些消息。
 
-In our logging system every running copy of the receiver program will get the messages.
-That way we'll be able to run one receiver and direct the logs to disk; and at the same time we'll be
-able to run another receiver and see the logs on the screen.
+在我们的日志系统中，每个正在运行的接收器程序副本都将收到消息。这样我们就可以运行一个接收器并将日志写入磁盘，同时也可以运行另一个接收器并在屏幕上查看日志。
 
-Essentially, published log messages are going to be broadcast to all the receivers.
+本质上，发布的日志消息将广播给所有接收器。
 
 
-Exchanges
-+++++++++
+交换机(Exchanges)
++++++++++++++++++
 
-In previous parts of the tutorial we sent and received messages to and from a queue.
-Now it's time to introduce the full messaging model in Rabbit.
+在教程的前几部分中，我们将消息发送到队列并从队列接收消息。现在是时候介绍 Rabbit 中的完整消息传递模型了。
 
-Let's quickly go over what we covered in the previous tutorials:
+让我们快速回顾一下前面的教程内容：
 
-* A producer is a user application that sends messages.
-* A queue is a buffer that stores messages.
-* A consumer is a user application that receives messages.
+* 生产者是发送消息的用户应用程序。
+* 队列是存储消息的缓冲区。
+* 消费者是接收消息的用户应用程序。
 
-The core idea in the messaging model in RabbitMQ is that the producer never sends any
-messages directly to a queue. Actually, quite often the producer doesn't even know if
-a message will be delivered to any queue at all.
+RabbitMQ 消息传递模型的核心思想是生产者从不直接将消息发送到队列。实际上，生产者通常甚至不知道消息是否会被传递到某个队列。
 
-Instead, the producer can only send messages to an exchange. An exchange is a very
-simple thing. On one side it receives messages from producers and the other side it
-pushes them to queues. The exchange must know exactly what to do with a message it receives.
-Should it be appended to a particular queue? Should it be appended to many queues?
-Or should it get discarded. The rules for that are defined by the exchange type.
+相反，生产者只能将消息发送到交换机。交换机本身非常简单。一方面它从生产者接收消息，另一方面它将消息推送到队列中。交换机必须确切地知道如何处理接收到的消息。它应该将消息添加到某个特定队列吗？还是应该添加到多个队列？或者应该丢弃？这些规则由交换机的类型来定义。
 
 .. image:: /_static/tutorial/exchanges.svg
    :align: center
 
-There are a few exchange types available: `DIRECT`, `TOPIC`, `HEADERS` and `FANOUT`
-(see :class:`aio_pika.ExchangeType`).
-We'll focus on the last one — the fanout. Let's create an exchange of that type, and call it `logs`:
+有几种可用的交换机类型：`DIRECT`、`TOPIC`、`HEADERS` 和 `FANOUT`（参见 :class:`aio_pika.ExchangeType` ）。
+我们将重点关注最后一种——扇出型（fanout）。让我们创建一个这种类型的交换机，并将其命名为 `logs`：
 
 .. literalinclude:: examples/3-publish-subscribe/emit_log.py
    :language: python
    :lines: 15-17
 
-The fanout exchange is very simple. As you can probably guess from the name, it just broadcasts
-all the messages it receives to all the queues it knows. And that's exactly what we need for our logger.
+扇出型交换机非常简单。顾名思义，它会将接收到的所有消息广播到所有它知道的队列。这正是我们日志系统所需要的。
 
 .. note::
 
-    **Listing exchanges**
+    **列出交换机**
 
-    To list the exchanges on the server you can run the ever useful rabbitmqctl::
+    要列出服务器上的交换机，你可以运行非常有用的 rabbitmqctl 命令::
 
         $ sudo rabbitmqctl list_exchanges
         Listing exchanges ...
@@ -96,16 +82,13 @@ all the messages it receives to all the queues it knows. And that's exactly what
         amq.headers     headers
         ...done.
 
-    In this list there are some `amq.*` exchanges and the default (unnamed) exchange.
-    These are created by default, but it is unlikely you'll need to use them at the moment.
+    在这个列表中，有一些 `amq.*` 交换机以及默认的（未命名的）交换机。这些交换机是默认创建的，但目前你可能不需要使用它们。
 
-    **Nameless exchange**
+    **无名交换机**
 
-    In previous parts of the tutorial we knew nothing about exchanges, but still were able to
-    send messages to queues. That was possible because we were using a default exchange,
-    which we identify by the empty string ("").
+    在教程的前几部分中，我们对交换机一无所知，但仍然能够将消息发送到队列。这是因为我们使用了默认交换机，我们通过空字符串 ("") 来标识它。
 
-    Recall how we published a message before:
+    回忆一下我们之前如何发布消息：
 
     .. code-block:: python
 
@@ -114,110 +97,89 @@ all the messages it receives to all the queues it knows. And that's exactly what
             routing_key='hello',
         )
 
-    The exchange parameter is the name of the exchange. The empty string denotes the
-    default or nameless exchange: messages are routed to the queue with the name specified
-    by routing_key, if it exists.
+    `exchange` 参数是交换机的名称。空字符串表示默认或无名交换机：消息将被路由到由 `routing_key` 指定名称的队列（如果存在）。
 
 
-Now, we can publish to our named exchange instead:
+现在，我们可以将消息发布到我们命名的交换机：
 
 .. literalinclude:: examples/3-publish-subscribe/emit_log.py
    :language: python
    :lines: 19-29
 
 
-Temporary queues
+临时队列  
 ++++++++++++++++
 
-As you may remember previously we were using queues which had a specified name
-(remember `hello` and `task_queue`?). Being able to name a queue was crucial for us — we needed to point
-the workers to the same queue. Giving a queue a name is important when you want to share the
-queue between producers and consumers.
+你可能还记得之前我们使用的是有指定名称的队列（还记得 `hello` 和 `task_queue` 吗？）。能够命名队列对我们至关重要——我们需要将工人指向同一个队列。当你想在生产者和消费者之间共享队列时，给队列命名是很重要的。
 
-But that's not the case for our logger. We want to hear about all log messages, not just a subset
-of them. We're also interested only in currently flowing messages not in the old ones. To solve
-that we need two things.
+但对于我们的日志系统来说情况不同。我们想听到所有的日志消息，而不仅仅是其中的一部分。我们也只关心当前流动的消息，而不是旧的消息。为了解决这个问题，我们需要两样东西。
 
-Firstly, whenever we connect to Rabbit we need a fresh, empty queue. To do it we could create a
-queue with a random name, or, even better - let the server choose a random queue name for us.
-We can do this by not supplying the queue parameter to `declare_queue`:
+首先，每当我们连接到 Rabbit 时，我们需要一个全新的、空的队列。为此，我们可以创建一个随机名称的队列，或者更好的是——让服务器为我们选择一个随机队列名称。我们可以通过不提供 `declare_queue` 的队列参数来实现这一点：
 
 .. code-block:: python
 
     queue = await channel.declare_queue()
 
-Secondly, once we disconnect the consumer the queue should be deleted. There's an exclusive flag for that:
+其次，一旦我们断开消费者连接，该队列应该被删除。为此有一个独占标志：
 
 .. literalinclude:: examples/3-publish-subscribe/receive_logs.py
    :language: python
    :lines: 26
 
-Bindings
+绑定  
 ++++++++
 
-.. image:: /_static/tutorial/bindings.svg
+.. image:: /_static/tutorial/bindings.svg  
    :align: center
 
-We've already created a fanout exchange and a queue. Now we need to tell the exchange to
-send messages to our queue. That relationship between exchange and a queue is called a binding.
+我们已经创建了一个扇出交换机和一个队列。现在我们需要告诉交换机将消息发送到我们的队列。交换机与队列之间的这种关系称为绑定。
 
-.. literalinclude:: examples/3-publish-subscribe/receive_logs.py
-   :language: python
+.. literalinclude:: examples/3-publish-subscribe/receive_logs.py  
+   :language: python  
    :lines: 21-29
 
-From now on the logs exchange will append messages to our queue.
-
+从现在开始，日志交换机将把消息添加到我们的队列中。
 
 .. note::
 
-    **Listing bindings**
+    **列出绑定**
 
-    You can list existing bindings using, you guessed it, `rabbitmqctl list_bindings`.
+    你可以使用 `rabbitmqctl list_bindings` 来列出现有的绑定，没错，就是它。
 
 
-Putting it all together
+综合起来  
 +++++++++++++++++++++++
 
-.. image:: /_static/tutorial/python-three-overall.svg
+.. image:: /_static/tutorial/python-three-overall.svg  
    :align: center
 
-The producer program, which emits log messages, doesn't look much different from the previous tutorial.
-The most important change is that we now want to publish messages to our logs exchange instead
-of the nameless one. We need to supply a routing_key when sending, but its value is ignored
-for fanout exchanges.
-Here goes the code for :download:`emit_log.py <examples/3-publish-subscribe/emit_log.py>` script:
+发送日志消息的生产者程序与之前的教程没有太大区别。最重要的变化是我们现在希望将消息发布到我们的 `logs` 交换机，而不是无名交换机。发送时我们需要提供 `routing_key`，但对于扇出型交换机，该值会被忽略。以下是 :download:`emit_log.py <examples/3-publish-subscribe/emit_log.py>` 脚本的代码：
 
-
-.. literalinclude:: examples/3-publish-subscribe/emit_log.py
+.. literalinclude:: examples/3-publish-subscribe/emit_log.py  
    :language: python
 
+如你所见，建立连接后，我们声明了交换机。这一步是必要的，因为向不存在的交换机发布消息是被禁止的。
 
-As you see, after establishing the connection we declared the exchange. This step is
-necessary as publishing to a non-existing exchange is forbidden.
+如果没有队列绑定到交换机，消息将会丢失，但这对我们来说没问题；如果没有消费者在监听，我们可以安全地丢弃消息。
 
-The messages will be lost if no queue is bound to the exchange yet, but that's okay for
-us; if no consumer is listening yet we can safely discard the message.
+以下是 :download:`receive_logs.py <examples/3-publish-subscribe/receive_logs.py>` 脚本的代码：
 
-The code for :download:`receive_logs.py <examples/3-publish-subscribe/receive_logs.py>` script:
-
-.. literalinclude:: examples/3-publish-subscribe/receive_logs.py
+.. literalinclude:: examples/3-publish-subscribe/receive_logs.py  
    :language: python
 
-
-We're done. If you want to save logs to a file, just open a console and type::
+我们完成了。如果你想将日志保存到文件中，只需打开控制台并输入::
 
     $ python receive_logs.py > logs_from_rabbit.log
 
-If you wish to see the logs on your screen, spawn a new terminal and run::
+如果你想在屏幕上查看日志，打开一个新的终端并运行::
 
     $ python receive_logs.py
 
-And of course, to emit logs type::
+当然，要发送日志，请输入::
 
     $ python emit_log.py
 
-Using *rabbitmqctl list_bindings* you can verify that the code actually creates bindings and
-queues as we want. With two *receive_logs.py* programs running you should see something like::
+使用 *rabbitmqctl list_bindings* 你可以验证代码确实按照我们预期创建了绑定和队列。运行两个 *receive_logs.py* 程序时，你应该看到类似的内容::
 
     $ sudo rabbitmqctl list_bindings
     Listing bindings ...
@@ -225,12 +187,10 @@ queues as we want. With two *receive_logs.py* programs running you should see so
     logs    exchange        amq.gen-vso0PVvyiRIL2WoV3i48Yg  queue           []
     ...done.
 
-The interpretation of the result is straightforward: data from exchange logs goes to two queues
-with server-assigned names. And that's exactly what we intended.
+结果的解释很简单：来自 `logs` 交换机的数据被发送到两个由服务器分配名称的队列。这正是我们所期望的。
 
-To find out how to listen for a subset of messages, let's move on to :ref:`tutorial 4 <routing>`
-
+要了解如何监听一部分消息，让我们继续学习 :ref:`教程 4 <routing>`。
 
 .. note::
 
-    This material was adopted from `official tutorial`_ on **rabbitmq.org**.
+    本材料采用自 **rabbitmq.org** 上的 `官方教程`_ 。

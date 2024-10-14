@@ -2,7 +2,7 @@
 .. _pull request: https://github.com/mosquito/aio-pika/compare
 .. _aio-pika: https://github.com/mosquito/aio-pika
 .. _syslog: http://en.wikipedia.org/wiki/Syslog
-.. _official tutorial: https://www.rabbitmq.com/tutorials/tutorial-five-python.html
+.. _官方教程: https://www.rabbitmq.com/tutorials/tutorial-five-python.html
 .. _topics:
 
 Topics
@@ -10,146 +10,121 @@ Topics
 
 .. warning::
 
-    This is a beta version of the port from `official tutorial`_. Please when you found an
-    error create `issue`_ or `pull request`_ for me.
+    这是从 `官方教程`_ 移植的测试版本。如果你发现了错误，请为我创建 `issue`_ 或 `pull request`_。
 
 
 .. note::
-    Using the `aio-pika`_ async Python client
+    
+    使用 `aio-pika`_ 异步 Python 客户端。
 
 .. note::
 
-    **Prerequisites**
+    **前提条件**
 
-    This tutorial assumes RabbitMQ is installed_ and running on localhost on standard port (`5672`).
-    In case you use a different host, port or credentials, connections settings would require adjusting.
+    本教程假设 RabbitMQ `已安装`_ 并在本地以标准端口（`5672`）运行。
+    如果你使用的是不同的主机、端口或凭据，则需要调整连接设置。
 
-    .. _installed: https://www.rabbitmq.com/download.html
+    .. _已安装: https://www.rabbitmq.com/download.html
 
-    **Where to get help**
+    **寻求帮助的途径**
 
-    If you're having trouble going through this tutorial you can `contact us`_ through the mailing list.
+    如果在完成本教程时遇到困难，可以通过邮件列表 `联系我们`_ 。
 
-    .. _contact us: https://groups.google.com/forum/#!forum/rabbitmq-users
+    .. _联系我们: https://groups.google.com/forum/#!forum/rabbitmq-users
 
 
-In the :ref:`previous tutorial <routing>` we improved our logging system. Instead of using a fanout
-exchange only capable of dummy broadcasting, we used a direct one, and gained a
-possibility of selectively receiving the logs.
+在 :ref:`上一教程 <routing>` 中，我们改进了我们的日志系统。我们不再使用仅能进行简单广播的 fanout 交换，而是使用了 direct 交换，从而获得了选择性接收日志的能力。
 
-Although using the direct exchange improved our system, it still has limitations — it can't do routing based on
-multiple criteria.
+尽管使用 direct 交换改善了我们的系统，但它仍然存在一些限制——它无法基于多个标准进行路由。
 
-In our logging system we might want to subscribe to not only logs based on severity, but
-also based on the source which emitted the log. You might know this concept from the syslog_
-unix tool, which routes logs based on both severity (`info`/`warn`/`crit`...)
-and facility (`auth`/`cron`/`kern`...).
+在我们的日志系统中，我们可能希望不仅根据严重性订阅日志，还根据发出日志的来源进行订阅。您可能从 unix 工具 syslog_ 中了解到这个概念，它根据严重性（`info` / `warn` / `crit`...）和设施（`auth` / `cron` / `kern`...）路由日志。
 
-That would give us a lot of flexibility - we may want to listen to just critical errors coming
-from 'cron' but also all logs from 'kern'.
+这将为我们提供很大的灵活性——我们可能只想监听来自 'cron' 的关键错误，同时也希望接收来自 'kern' 的所有日志。
 
-To implement that in our logging system we need to learn about a more complex topic exchange.
+要在我们的日志系统中实现这一点，我们需要学习更复杂的主题交换（topic exchange）。
 
-Topic exchange
-++++++++++++++
+主题交换（Topic Exchange）
+++++++++++++++++++++++++++
 
-Messages sent to a topic exchange can't have an arbitrary *routing_key* - it must be a list of words,
-delimited by dots. The words can be anything, but usually they specify some features connected to
-the message. A few valid routing key examples: `"stock.usd.nyse"`, `"nyse.vmw"`, `"quick.orange.rabbit"`.
-There can be as many words in the routing key as you like, up to the limit of 255 bytes.
+发送到主题交换的消息不能使用任意的 *routing_key* —— 它必须是由点分隔的单词列表。这些单词可以是任何内容，但通常会指定与消息相关的一些特征。以下是一些有效的 routing key 示例: `"stock.usd.nyse"`, `"nyse.vmw"`, `"quick.orange.rabbit"` 。routing key 中的单词可以有任意数量，最多限制为 255 字节。
 
-The binding key must also be in the same form. The logic behind the topic exchange is similar
-to a direct one - a message sent with a particular routing key will be delivered to all the
-queues that are bound with a matching binding key. However there are two important special
-cases for binding keys:
+绑定键（binding key）也必须采用相同的格式。主题交换背后的逻辑类似于直接交换——使用特定 routing key 发送的消息将被发送到所有与匹配绑定键相绑定的队列。然而，绑定键有两个重要的特殊情况：
 
-* `*` (star) can substitute for exactly one word.
-* `#` (hash) can substitute for zero or more words.
+* `*` （星号）可以替代一个单词。
+* `#` （井号）可以替代零个或多个单词。
 
-It's easiest to explain this in an example:
+用一个示例来解释这一点是最简单的：
 
 .. image:: /_static/tutorial/python-five.svg
    :align: center
 
-In this example, we're going to send messages which all describe animals. The messages will be sent
-with a routing key that consists of three words (two dots). The first word in the routing key will
-describe a celerity, second a colour and third a species: `"<celerity>.<colour>.<species>"`.
+在这个例子中，我们将发送描述动物的消息。这些消息将使用由三个单词（两个点）组成的 routing key 发送。routing key 中的第一个单词将描述速度，第二个单词描述颜色，第三个单词描述物种: `"<celerity>.<colour>.<species>"` 。
 
-We created three bindings: *Q1* is bound with binding key `"*.orange.*"` and Q2 with `"*.*.rabbit"` and `"lazy.#"`.
+我们创建了三个绑定: *Q1* 使用绑定键 `"*.orange.*"` 绑定, *Q2* 使用绑定键 `"*.*.rabbit"` 和 `"lazy.#"` 绑定。
 
-These bindings can be summarised as:
+这些绑定可以总结如下：
 
-* Q1 is interested in all the orange animals.
-* Q2 wants to hear everything about rabbits, and everything about lazy animals.
-* A message with a routing key set to `"quick.orange.rabbit"` will be delivered to both queues.
-  Message `"lazy.orange.elephant"` also will go to both of them. On the other hand `"quick.orange.fox"` will only go to
-  the first queue, and `"lazy.brown.fox"` only to the second. `"lazy.pink.rabbit"` will be delivered to the second
-  queue only once, even though it matches two bindings. "quick.brown.fox" doesn't match any binding so it will be
-  discarded.
+* Q1 对所有橙色动物感兴趣。
+* Q2 想了解有关兔子的所有信息，以及关于懒惰动物的所有信息。
+* routing key 设置为 `"quick.orange.rabbit"` 的消息将被发送到两个队列。
+  消息 `"lazy.orange.elephant"` 也会发送到两个队列。另一方面，`"quick.orange.fox"` 仅会发送到第一个队列，而 `"lazy.brown.fox"` 仅会发送到第二个队列。`"lazy.pink.rabbit"` 将仅发送到第二个队列一次，即使它匹配了两个绑定。`"quick.brown.fox"` 不匹配任何绑定，因此会被丢弃。
 
-What happens if we break our contract and send a message with one or four words,
-like `"orange"` or `"quick.orange.male.rabbit"`? Well, these messages won't match any bindings and will be lost.
+如果我们违反合同，发送一个包含一个或四个单词的消息，例如 `"orange"` 或 `"quick.orange.male.rabbit"`，会发生什么？这些消息将不匹配任何绑定，因此会丢失。
 
-On the other hand `"lazy.orange.male.rabbit"`, even though it has four words, will match the last binding and will be
-delivered to the second queue.
+另一方面, `"lazy.orange.male.rabbit"` 尽管有四个单词，但会匹配最后一个绑定，并将被发送到第二个队列。
 
 .. note::
 
-    **Topic exchange**
+    **主题交换**
 
-    Topic exchange is powerful and can behave like other exchanges.
+    主题交换非常强大，可以像其他交换一样运行。
 
-    When a queue is bound with `"#"` (hash) binding key - it will receive all the messages, regardless of the routing
-    key - like in fanout exchange.
+    当一个队列使用 `"#"`（井号）绑定键绑定时——它将接收所有消息，而不管 routing key 是什么——就像在 fanout 交换中一样。
 
-    When special characters `"*"` (star) and `"#"` (hash) aren't used in bindings, the topic exchange will behave just
-    like a direct one.
+    当在绑定中不使用特殊字符 `"*"`（星号）和 `"#"`（井号）时，主题交换将表现得就像直接交换一样。
 
 
-Putting it all together
-+++++++++++++++++++++++
+综合起来
++++++++++++++++++
 
-We're going to use a topic exchange in our logging system. We'll start off with a working assumption
-that the routing keys of logs will have two words: `"<facility>.<severity>"`.
+我们将在日志系统中使用主题交换。我们将以日志的 routing keys 有两个单词: `"<facility>.<severity>"` 为工作假设开始。
 
-The code is almost the same as in the :ref:`previous tutorial <routing>`.
+代码与 :ref:`前一个教程 <routing>` 中的几乎相同。
 
-The code for :download:`emit_log_topic.py <examples/5-topics/emit_log_topic.py>`:
+用于 :download:`emit_log_topic.py <examples/5-topics/emit_log_topic.py>` 的代码：
 
 .. literalinclude:: examples/5-topics/emit_log_topic.py
    :language: python
 
-The code for :download:`receive_logs_topic.py <examples/5-topics/receive_logs_topic.py>`:
+用于 :download:`receive_logs_topic.py <examples/5-topics/receive_logs_topic.py>` 的代码：
 
 .. literalinclude:: examples/5-topics/receive_logs_topic.py
    :language: python
 
-To receive all the logs run::
+要接收所有日志，请运行::
 
     python receive_logs_topic.py "#"
 
-To receive all logs from the facility `"kern"`::
+要接收来自设施 `"kern"` 的所有日志，请运行::
 
     python receive_logs_topic.py "kern.*"
 
-Or if you want to hear only about `"critical"` logs::
+或者如果您只想了解 `"critical"` 日志，请运行::
 
     python receive_logs_topic.py "*.critical"
 
-You can create multiple bindings::
+您可以创建多个绑定::
 
     python receive_logs_topic.py "kern.*" "*.critical"
 
-And to emit a log with a routing key `"kern.critical"` type::
+要发出 routing key 为 `"kern.critical"` 的日志，请输入::
 
     python emit_log_topic.py "kern.critical" "A critical kernel error"
 
-Have fun playing with these programs. Note that the code doesn't make any assumption
-about the routing or binding keys, you may want to play with more than two routing key parameters.
+玩得开心！请注意，代码对 routing 或 binding keys 并没有任何假设，您可能想尝试更多的 routing key 参数。
 
-Move on to :ref:`tutorial 6 <rpc>` to learn about RPC.
-
+接下来请参阅 :ref:`教程 6 <rpc>` 来了解 RPC。
 
 .. note::
 
-    This material was adopted from `official tutorial`_ on **rabbitmq.org**.
+    本材料摘自 **rabbitmq.org** 上的 `官方教程`_ 。

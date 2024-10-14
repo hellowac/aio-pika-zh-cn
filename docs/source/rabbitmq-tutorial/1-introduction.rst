@@ -9,7 +9,7 @@
 .. _introduction:
 
 
-简介
+入门
 ============
 
 .. warning::
@@ -166,7 +166,7 @@ Hello World!
 
 .. note::
     
-    **监听队列(Listing queues)**
+    **列出队列**
 
     你可能希望查看 RabbitMQ 中有哪些队列以及它们中的消息数量。作为特权用户，你可以使用 rabbitmqctl 工具做到这一点：
 

@@ -1,55 +1,48 @@
 .. _issue: https://github.com/mosquito/aio-pika/issues
 .. _pull request: https://github.com/mosquito/aio-pika/compare
 .. _aio-pika: https://github.com/mosquito/aio-pika
-.. _official tutorial: https://www.rabbitmq.com/tutorials/tutorial-seven-php.html
+.. _官方教程: https://www.rabbitmq.com/tutorials/tutorial-seven-php.html
 .. _publisher-confirms:
 
-Publisher Confirms
+发布确认
 ==================
 
 .. warning::
 
-    This is a beta version of the port from `official tutorial`_. Please when you found an
-    error create `issue`_ or `pull request`_ for me.
+    这是从 `官方教程`_ 移植的测试版本。如果你发现了错误，请为我创建 `issue`_ 或 `pull request`_。
 
 
 .. note::
-    Using the `aio-pika`_ async Python client
-
+    
+    使用 `aio-pika`_ 异步 Python 客户端。
 
 .. note::
 
-    **Prerequisites**
+    **前提条件**
 
-    This tutorial assumes RabbitMQ is installed_ and running on localhost on standard port (`5672`).
-    In case you use a different host, port or credentials, connections settings would require adjusting.
+    本教程假设 RabbitMQ `已安装`_ 并在本地以标准端口（`5672`）运行。
+    如果你使用的是不同的主机、端口或凭据，则需要调整连接设置。
 
-    .. _installed: https://www.rabbitmq.com/download.html
+    .. _已安装: https://www.rabbitmq.com/download.html
 
-    **Where to get help**
+    **寻求帮助的途径**
 
-    If you're having trouble going through this tutorial you can `contact us`_ through the mailing list.
+    如果在完成本教程时遇到困难，可以通过邮件列表 `联系我们`_ 。
 
-    .. _contact us: https://groups.google.com/forum/#!forum/rabbitmq-users
+    .. _联系我们: https://groups.google.com/forum/#!forum/rabbitmq-users
 
 
-`Publisher confirms <https://www.rabbitmq.com/confirms.html#publisher-confirms>`_ are a RabbitMQ
-extension to implement reliable publishing.
-When publisher confirms are enabled on a channel, messages the client publishes are confirmed
-asynchronously by the broker, meaning they have been taken care of on the server side.
+`发布者确认 <https://www.rabbitmq.com/confirms.html#publisher-confirms>`_ 是 RabbitMQ 的一个扩展，用于实现可靠的消息发布。当在通道上启用发布者确认时，客户端发布的消息会被代理异步确认，这意味着它们已经在服务器端得到了处理。
 
-Overview
+概述
 ++++++++
 
-In this tutorial we're going to use publisher confirms to make sure published messages have safely reached the broker.
-We will cover several strategies to using publisher confirms and explain their pros and cons.
+在本教程中，我们将使用发布者确认来确保发布的消息安全地到达代理。我们将介绍几种使用发布者确认的策略，并解释它们的优缺点。
 
-Enabling Publisher Confirms on a Channel
+在通道上启用发布者确认
 ++++++++++++++++++++++++++++++++++++++++
 
-Publisher confirms are a RabbitMQ extension to the AMQP 0.9.1 protocol.
-Publisher confirms are enabled at the channel level by setting the :code:`publisher_confirms` parameter to :code:`True`,
-which is the default.
+发布者确认是对 AMQP 0.9.1 协议的 RabbitMQ 扩展。通过将 :code:`publisher_confirms` 参数设置为 :code:`True` 来在通道级别启用发布者确认，这也是默认设置。
 
 .. code-block:: python
 
@@ -57,98 +50,86 @@ which is the default.
       publisher_confirms=True, # This is the default
    )
 
-Strategy #1: Publishing Messages Individually
-+++++++++++++++++++++++++++++++++++++++++++++
+策略 #1: 单独发布消息
+++++++++++++++++++++++
 
-Let's start with the simplest approach to publishing with confirms, that is, publishing a message and
-waiting synchronously for its confirmation:
+让我们从最简单的发布确认方法开始，即发布一条消息并同步等待其确认：
 
 .. literalinclude:: examples/7-publisher-confirms/publish_individually.py
    :language: python
    :start-at: # Sending the messages
    :end-before: # Done sending messages
 
-In the previous example we publish a message as usual and wait for its confirmation with the :code:`await` keyword.
-The :code:`await` returns as soon as the message has been confirmed.
-If the message is not confirmed within the timeout or if it is nack-ed (meaning the broker could not take care of it for
-some reason), the :code:`await` will throw an exception.
-The :code:`on_return_raises` parameter of :code:`aio_pika.connect()` and :code:`connection.channel()` controls this behaivior for if a mandatory
-message is returned.
-The handling of the exception usually consists in logging an error message and/or retrying to send the message.
+在前面的示例中，我们像往常一样发布一条消息，并使用 :code:`await` 关键字等待其确认。
+当消息被确认时，:code:`await` 会立即返回。
+如果消息在超时内未被确认，或者被拒绝（即代理由于某种原因无法处理它），:code:`await` 将引发异常。
+:code:`aio_pika.connect()` 和 :code:`connection.channel()` 的 :code:`on_return_raises` 参数控制了当强制消息被返回时的行为。
+异常的处理通常包括记录错误消息和/或重试发送消息。
 
-Different client libraries have different ways to synchronously deal with publisher confirms, so make sure to read
-carefully the documentation of the client you are using.
+不同的客户端库以不同的方式同步处理发布者确认，因此请确保仔细阅读您所使用的客户端的文档。
 
-This technique is very straightforward but also has a major drawback: it **significantly slows down publishing**, as the
-confirmation of a message blocks the publishing of all subsequent messages.
-This approach is not going to deliver throughput of more than a few hundreds of published messages per second.
-Nevertheless, this can be good enough for some applications.
+这种技术非常简单，但也有一个主要缺点：它**显著减慢了发布速度**，因为消息的确认会阻塞所有后续消息的发布。
+这种方法无法提供每秒超过几百条发布消息的吞吐量。
+尽管如此，这对某些应用来说可能已经足够了。
 
-Strategy #2: Publishing Messages in Batches
-+++++++++++++++++++++++++++++++++++++++++++
+策略 #2: 批量发布消息
++++++++++++++++++++++
 
-To improve upon our previous example, we can publish a batch of messages and wait for this whole batch to be confirmed.
-The following example uses a batch of 100:
+为了改进我们之前的示例，我们可以发布一批消息，并等待整批消息被确认。
+以下示例使用了一批 100 条消息：
 
 .. literalinclude:: examples/7-publisher-confirms/publish_batches.py
    :language: python
    :start-at: batchsize = 100
    :end-before: # Done sending messages
 
-Waiting for a batch of messages to be confirmed improves throughput drastically over waiting for a confirm for individual
-message (up to 20-30 times with a remote RabbitMQ node).
-One drawback is that we do not know exactly what went wrong in case of failure, so we may have to keep a whole batch in memory
-to log something meaningful or to re-publish the messages.
-And this solution is still synchronous, so it blocks the publishing of messages.
+等待一批消息被确认相比于等待单条消息的确认显著提高了吞吐量（在远程 RabbitMQ 节点上可提高 20-30 倍）。
+一个缺点是，在发生故障时我们无法确切知道出错的原因，因此可能需要将整批消息保留在内存中，以记录一些有意义的信息或重新发布这些消息。
+并且这个解决方案仍然是同步的，因此它会阻塞消息的发布。
 
 .. note::
 
-   To initiate message sending asynchronously, a task is created with :code:`asyncio.create_task`, so the execution of our function
-   is handled by the event-loop.
-   The :code:`await asyncio.sleep(0)` is required to make the event loop switch to our coroutine.
-   Any :code:`await` would have sufficed, though.
-   Using :code:`async for` with an :code:`async` generator also requires the generator to yield control flow with :code:`await` for message
-   sending to be initiated.
+   为了异步启动消息发送，使用 :code:`asyncio.create_task` 创建一个任务，以便由事件循环处理我们的函数执行。
+   :code:`await asyncio.sleep(0)` 是必需的，以使事件循环切换到我们的协程。
+   任何 :code:`await` 都可以满足这个需求。
+   使用 :code:`async for` 和 :code:`async` 生成器时，也需要生成器通过 :code:`await` 进行控制流的转移，以启动消息发送。
 
-   Without the task and the :code:`await` the message sending would only be initiated with the :code:`asyncio.gather` call.
-   For some applications this behaivior might be acceptable.
+   如果没有任务和 :code:`await`，消息发送只会在 :code:`asyncio.gather` 调用时启动。
+   对于某些应用来说，这种行为可能是可以接受的。
 
 
-Strategy #3: Handling Publisher Confirms Asynchronously
+策略 #3: 异步处理发布确认
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-The broker confirms published messages asynchronously, our helper function will publish the messages and be notified of these confirms:
+代理服务器异步确认已发布的消息，我们的辅助函数将发布消息并接收这些确认的通知：
 
 .. literalinclude:: examples/7-publisher-confirms/publish_asynchronously.py
    :language: python
    :start-at: # List for storing tasks
    :end-at: await asyncio.gather(*tasks)
 
-In Python 3.11 a :code:`TaskGroup` can be used instead of the :code:`list` with :code:`asyncio.gather`.
+在 Python 3.11 中，可以使用 :code:`TaskGroup` 替代 :code:`list` 和 :code:`asyncio.gather`。
 
-The helper function publishes the message and awaits the confirmation.
-This way the helper function knows which message the confirmation, timeout or rejection belongs to.
+辅助函数发布消息并等待确认。
+这样，辅助函数就知道确认、超时或拒绝属于哪条消息。 
 
 .. literalinclude:: examples/7-publisher-confirms/publish_asynchronously.py
    :language: python
    :pyobject: publish_and_handle_confirm
 
 
-Summary
+总结
 +++++++
 
-Making sure published messages made it to the broker can be essential in some applications.
-Publisher confirms are a RabbitMQ feature that helps to meet this requirement.
-Publisher confirms are asynchronous in nature but it is also possible to handle them synchronously.
-There is no definitive way to implement publisher confirms, this usually comes down to the constraints in the application
-and in the overall system. Typical techniques are:
+确保已发布的消息成功发送到代理服务器在某些应用中可能至关重要。
+发布确认是 RabbitMQ 的一项功能，可以帮助满足这一要求。
+发布确认本质上是异步的，但也可以以同步的方式处理。
+没有一种确定的方法来实现发布确认，这通常取决于应用程序和整体系统的约束。典型的技术包括：
 
-* publishing messages individually, waiting for the confirmation synchronously: simple, but very limited throughput.
-* publishing messages in batch, waiting for the confirmation synchronously for a batch: simple, reasonable throughput, but hard to reason about when something goes wrong.
-* asynchronous handling: best performance and use of resources, good control in case of error, but can be involved to implement correctly.
-
-
+* 单独发布消息，等待同步确认：简单，但吞吐量非常有限。
+* 批量发布消息，等待批量的同步确认：简单，吞吐量合理，但当出现问题时很难进行推理。
+* 异步处理：最佳性能和资源利用，在出现错误时具有良好的控制，但实现起来可能比较复杂。
 
 .. note::
 
-    This material was adopted from `official tutorial`_ on **rabbitmq.org**.
+    本材料改编自 **rabbitmq.org** 上的 `官方教程`_ 。
