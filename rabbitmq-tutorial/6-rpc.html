@@ -1,0 +1,638 @@
+<!doctype html>
+<html class="no-js" lang="zh-CN" data-content_root="../">
+  <head><meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width,initial-scale=1"/>
+    <meta name="color-scheme" content="light dark"><meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="index" title="索引" href="../genindex.html" /><link rel="search" title="搜索" href="../search.html" /><link rel="next" title="发布确认" href="7-publisher-confirms.html" /><link rel="prev" title="Topics" href="5-topics.html" />
+
+    <link rel="shortcut icon" href="../_static/icon.png"/><!-- Generated with Sphinx 8.1.3 and Furo 2024.08.06 -->
+        <title>远程过程调用(RPC) - Wrapper for the aiormq for asyncio and humans</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=fa44fd50" />
+    <link rel="stylesheet" type="text/css" href="../_static/styles/furo.css?v=354aac6f" />
+    <link rel="stylesheet" type="text/css" href="../_static/styles/furo-extensions.css?v=302659d7" />
+    
+    
+
+
+<style>
+  body {
+    --color-code-background: #eeffcc;
+  --color-code-foreground: black;
+  
+  }
+  @media not print {
+    body[data-theme="dark"] {
+      --color-code-background: #202020;
+  --color-code-foreground: #d0d0d0;
+  
+    }
+    @media (prefers-color-scheme: dark) {
+      body:not([data-theme="light"]) {
+        --color-code-background: #202020;
+  --color-code-foreground: #d0d0d0;
+  
+      }
+    }
+  }
+</style></head>
+  <body>
+    
+    <script>
+      document.body.dataset.theme = localStorage.getItem("theme") || "auto";
+    </script>
+    
+
+<svg xmlns="http://www.w3.org/2000/svg" style="display: none;">
+  <symbol id="svg-toc" viewBox="0 0 24 24">
+    <title>Contents</title>
+    <svg stroke="currentColor" fill="currentColor" stroke-width="0" viewBox="0 0 1024 1024">
+      <path d="M408 442h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8zm-8 204c0 4.4 3.6 8 8 8h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56zm504-486H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zm0 632H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zM115.4 518.9L271.7 642c5.8 4.6 14.4.5 14.4-6.9V388.9c0-7.4-8.5-11.5-14.4-6.9L115.4 505.1a8.74 8.74 0 0 0 0 13.8z"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-menu" viewBox="0 0 24 24">
+    <title>Menu</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-menu">
+      <line x1="3" y1="12" x2="21" y2="12"></line>
+      <line x1="3" y1="6" x2="21" y2="6"></line>
+      <line x1="3" y1="18" x2="21" y2="18"></line>
+    </svg>
+  </symbol>
+  <symbol id="svg-arrow-right" viewBox="0 0 24 24">
+    <title>Expand</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-chevron-right">
+      <polyline points="9 18 15 12 9 6"></polyline>
+    </svg>
+  </symbol>
+  <symbol id="svg-sun" viewBox="0 0 24 24">
+    <title>Light mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="feather-sun">
+      <circle cx="12" cy="12" r="5"></circle>
+      <line x1="12" y1="1" x2="12" y2="3"></line>
+      <line x1="12" y1="21" x2="12" y2="23"></line>
+      <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+      <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+      <line x1="1" y1="12" x2="3" y2="12"></line>
+      <line x1="21" y1="12" x2="23" y2="12"></line>
+      <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+      <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+    </svg>
+  </symbol>
+  <symbol id="svg-moon" viewBox="0 0 24 24">
+    <title>Dark mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-moon">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+      <path d="M12 3c.132 0 .263 0 .393 0a7.5 7.5 0 0 0 7.92 12.446a9 9 0 1 1 -8.313 -12.454z" />
+    </svg>
+  </symbol>
+  <symbol id="svg-sun-with-moon" viewBox="0 0 24 24">
+    <title>Auto light/dark, in light mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round"
+      class="icon-custom-derived-from-feather-sun-and-tabler-moon">
+      <path style="opacity: 50%" d="M 5.411 14.504 C 5.471 14.504 5.532 14.504 5.591 14.504 C 3.639 16.319 4.383 19.569 6.931 20.352 C 7.693 20.586 8.512 20.551 9.25 20.252 C 8.023 23.207 4.056 23.725 2.11 21.184 C 0.166 18.642 1.702 14.949 4.874 14.536 C 5.051 14.512 5.231 14.5 5.411 14.5 L 5.411 14.504 Z"/>
+      <line x1="14.5" y1="3.25" x2="14.5" y2="1.25"/>
+      <line x1="14.5" y1="15.85" x2="14.5" y2="17.85"/>
+      <line x1="10.044" y1="5.094" x2="8.63" y2="3.68"/>
+      <line x1="19" y1="14.05" x2="20.414" y2="15.464"/>
+      <line x1="8.2" y1="9.55" x2="6.2" y2="9.55"/>
+      <line x1="20.8" y1="9.55" x2="22.8" y2="9.55"/>
+      <line x1="10.044" y1="14.006" x2="8.63" y2="15.42"/>
+      <line x1="19" y1="5.05" x2="20.414" y2="3.636"/>
+      <circle cx="14.5" cy="9.55" r="3.6"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-moon-with-sun" viewBox="0 0 24 24">
+    <title>Auto light/dark, in dark mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round"
+      class="icon-custom-derived-from-feather-sun-and-tabler-moon">
+      <path d="M 8.282 7.007 C 8.385 7.007 8.494 7.007 8.595 7.007 C 5.18 10.184 6.481 15.869 10.942 17.24 C 12.275 17.648 13.706 17.589 15 17.066 C 12.851 22.236 5.91 23.143 2.505 18.696 C -0.897 14.249 1.791 7.786 7.342 7.063 C 7.652 7.021 7.965 7 8.282 7 L 8.282 7.007 Z"/>
+      <line style="opacity: 50%" x1="18" y1="3.705" x2="18" y2="2.5"/>
+      <line style="opacity: 50%" x1="18" y1="11.295" x2="18" y2="12.5"/>
+      <line style="opacity: 50%" x1="15.316" y1="4.816" x2="14.464" y2="3.964"/>
+      <line style="opacity: 50%" x1="20.711" y1="10.212" x2="21.563" y2="11.063"/>
+      <line style="opacity: 50%" x1="14.205" y1="7.5" x2="13.001" y2="7.5"/>
+      <line style="opacity: 50%" x1="21.795" y1="7.5" x2="23" y2="7.5"/>
+      <line style="opacity: 50%" x1="15.316" y1="10.184" x2="14.464" y2="11.036"/>
+      <line style="opacity: 50%" x1="20.711" y1="4.789" x2="21.563" y2="3.937"/>
+      <circle style="opacity: 50%" cx="18" cy="7.5" r="2.169"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-pencil" viewBox="0 0 24 24">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-pencil-code">
+      <path d="M4 20h4l10.5 -10.5a2.828 2.828 0 1 0 -4 -4l-10.5 10.5v4" />
+      <path d="M13.5 6.5l4 4" />
+      <path d="M20 21l2 -2l-2 -2" />
+      <path d="M17 17l-2 2l2 2" />
+    </svg>
+  </symbol>
+  <symbol id="svg-eye" viewBox="0 0 24 24">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-eye-code">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+      <path d="M10 12a2 2 0 1 0 4 0a2 2 0 0 0 -4 0" />
+      <path
+        d="M11.11 17.958c-3.209 -.307 -5.91 -2.293 -8.11 -5.958c2.4 -4 5.4 -6 9 -6c3.6 0 6.6 2 9 6c-.21 .352 -.427 .688 -.647 1.008" />
+      <path d="M20 21l2 -2l-2 -2" />
+      <path d="M17 17l-2 2l2 2" />
+    </svg>
+  </symbol>
+</svg>
+
+<input type="checkbox" class="sidebar-toggle" name="__navigation" id="__navigation">
+<input type="checkbox" class="sidebar-toggle" name="__toc" id="__toc">
+<label class="overlay sidebar-overlay" for="__navigation">
+  <div class="visually-hidden">Hide navigation sidebar</div>
+</label>
+<label class="overlay toc-overlay" for="__toc">
+  <div class="visually-hidden">Hide table of contents sidebar</div>
+</label>
+
+<a class="skip-to-content muted-link" href="#furo-main-content">Skip to content</a>
+
+
+
+<div class="page">
+  <header class="mobile-header">
+    <div class="header-left">
+      <label class="nav-overlay-icon" for="__navigation">
+        <div class="visually-hidden">Toggle site navigation sidebar</div>
+        <i class="icon"><svg><use href="#svg-menu"></use></svg></i>
+      </label>
+    </div>
+    <div class="header-center">
+      <a href="../index.html"><div class="brand">Wrapper for the aiormq for asyncio and humans</div></a>
+    </div>
+    <div class="header-right">
+      <div class="theme-toggle-container theme-toggle-header">
+        <button class="theme-toggle">
+          <div class="visually-hidden">Toggle Light / Dark / Auto color theme</div>
+          <svg class="theme-icon-when-auto-light"><use href="#svg-sun-with-moon"></use></svg>
+          <svg class="theme-icon-when-auto-dark"><use href="#svg-moon-with-sun"></use></svg>
+          <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
+          <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
+        </button>
+      </div>
+      <label class="toc-overlay-icon toc-header-icon" for="__toc">
+        <div class="visually-hidden">Toggle table of contents sidebar</div>
+        <i class="icon"><svg><use href="#svg-toc"></use></svg></i>
+      </label>
+    </div>
+  </header>
+  <aside class="sidebar-drawer">
+    <div class="sidebar-container">
+      
+      <div class="sidebar-sticky"><a class="sidebar-brand" href="../index.html">
+  
+  <div class="sidebar-logo-container">
+    <img class="sidebar-logo" src="../_static/logo2x.png" alt="Logo"/>
+  </div>
+  
+  
+</a><form class="sidebar-search-container" method="get" action="../search.html" role="search">
+  <input class="sidebar-search" placeholder="搜索" name="q" aria-label="搜索">
+  <input type="hidden" name="check_keywords" value="yes">
+  <input type="hidden" name="area" value="default">
+</form>
+<div id="searchbox"></div><div class="sidebar-scroll"><div class="sidebar-tree">
+  <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../quick-start.html">快速开始</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../patterns.html">模式和辅助工具</a></li>
+<li class="toctree-l1 current has-children"><a class="reference internal" href="index.html">RabbitMQ 教程</a><input checked="" class="toctree-checkbox" id="toctree-checkbox-1" name="toctree-checkbox-1" role="switch" type="checkbox"/><label for="toctree-checkbox-1"><div class="visually-hidden">Toggle navigation of RabbitMQ 教程</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="1-introduction.html">入门</a></li>
+<li class="toctree-l2"><a class="reference internal" href="2-work-queues.html">工作队列</a></li>
+<li class="toctree-l2"><a class="reference internal" href="3-publish-subscribe.html">发布/订阅</a></li>
+<li class="toctree-l2"><a class="reference internal" href="4-routing.html">路由</a></li>
+<li class="toctree-l2"><a class="reference internal" href="5-topics.html">Topics</a></li>
+<li class="toctree-l2 current current-page"><a class="current reference internal" href="#">远程过程调用(RPC)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="7-publisher-confirms.html">发布确认</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../apidoc.html">API 参考</a></li>
+</ul>
+
+</div>
+</div>
+
+      </div>
+      
+    </div>
+  </aside>
+  <div class="main">
+    <div class="content">
+      <div class="article-container">
+        <a href="#" class="back-to-top muted-link">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+            <path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8v12z"></path>
+          </svg>
+          <span>Back to top</span>
+        </a>
+        <div class="content-icon-container">
+          <div class="view-this-page">
+  <a class="muted-link" href="https://github.com/mosquito/aio-pika/blob/master/docs/source/rabbitmq-tutorial/6-rpc.rst?plain=true" title="View this page">
+    <svg><use href="#svg-eye"></use></svg>
+    <span class="visually-hidden">View this page</span>
+  </a>
+</div><div class="edit-this-page">
+  <a class="muted-link" href="https://github.com/mosquito/aio-pika/edit/master/docs/source/rabbitmq-tutorial/6-rpc.rst" title="Edit this page">
+    <svg><use href="#svg-pencil"></use></svg>
+    <span class="visually-hidden">Edit this page</span>
+  </a>
+</div><div class="theme-toggle-container theme-toggle-content">
+            <button class="theme-toggle">
+              <div class="visually-hidden">Toggle Light / Dark / Auto color theme</div>
+              <svg class="theme-icon-when-auto-light"><use href="#svg-sun-with-moon"></use></svg>
+              <svg class="theme-icon-when-auto-dark"><use href="#svg-moon-with-sun"></use></svg>
+              <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
+              <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
+            </button>
+          </div>
+          <label class="toc-overlay-icon toc-content-icon" for="__toc">
+            <div class="visually-hidden">Toggle table of contents sidebar</div>
+            <i class="icon"><svg><use href="#svg-toc"></use></svg></i>
+          </label>
+        </div>
+        <article role="main" id="furo-main-content">
+          <section id="rpc">
+<span id="id2"></span><h1>远程过程调用(RPC)<a class="headerlink" href="#rpc" title="Link to this heading">¶</a></h1>
+<div class="admonition warning">
+<p class="admonition-title">警告</p>
+<p>这是从 <a class="reference external" href="https://www.rabbitmq.com/tutorials/tutorial-six-python.html">官方教程</a> 移植的测试版本。如果你发现了错误，请为我创建 <a class="reference external" href="https://github.com/mosquito/aio-pika/issues">issue</a> 或 <a class="reference external" href="https://github.com/mosquito/aio-pika/compare">pull request</a>。</p>
+</div>
+<div class="admonition note">
+<p class="admonition-title">备注</p>
+<p>使用 <a class="reference external" href="https://github.com/mosquito/aio-pika">aio-pika</a> 异步 Python 客户端。</p>
+</div>
+<div class="admonition note">
+<p class="admonition-title">备注</p>
+<p><strong>前提条件</strong></p>
+<p>本教程假设 RabbitMQ <a class="reference external" href="https://www.rabbitmq.com/download.html">已安装</a> 并在本地以标准端口（<cite>5672</cite>）运行。
+如果你使用的是不同的主机、端口或凭据，则需要调整连接设置。</p>
+<p><strong>寻求帮助的途径</strong></p>
+<p>如果在完成本教程时遇到困难，可以通过邮件列表 <a class="reference external" href="https://groups.google.com/forum/#!forum/rabbitmq-users">联系我们</a> 。</p>
+</div>
+<p>在 <a class="reference internal" href="2-work-queues.html#work-queues"><span class="std std-ref">第二个教程</span></a> 中，我们学习了如何使用 <em>工作队列</em> 在多个工作者之间分配耗时的任务。</p>
+<p>但是，如果我们需要在远程计算机上运行一个函数并等待结果呢？嗯，那就是另一个故事。这个模式通常被称为 <em>远程过程调用（Remote procedure call - RPC）</em>。</p>
+<p>在本教程中，我们将使用 RabbitMQ 构建一个 RPC 系统：一个客户端和一个可扩展的 RPC 服务器。由于我们没有任何值得分配的耗时任务，我们将创建一个返回 Fibonacci 数字的虚拟 RPC 服务。</p>
+<section id="id5">
+<h2>客户端接口<a class="headerlink" href="#id5" title="Link to this heading">¶</a></h2>
+<p>为了说明 RPC 服务如何使用，我们将创建一个简单的客户端类。它将暴露一个名为 <cite>call</cite> 的方法，该方法发送 RPC 请求并阻塞，直到收到答案：</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">async</span> <span class="k">def</span> <span class="nf">main</span><span class="p">():</span>
+    <span class="n">fibonacci_rpc</span> <span class="o">=</span> <span class="n">FibonacciRpcClient</span><span class="p">()</span>
+    <span class="n">result</span> <span class="o">=</span> <span class="k">await</span> <span class="n">fibonacci_rpc</span><span class="o">.</span><span class="n">call</span><span class="p">(</span><span class="mi">4</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;fib(4) is </span><span class="si">%r</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="n">result</span><span class="p">)</span>
+</pre></div>
+</div>
+<div class="admonition note">
+<p class="admonition-title">备注</p>
+<p><strong>关于 RPC 的说明</strong></p>
+<p>尽管 RPC 是计算中一个相当常见的模式，但它常常受到批评。问题出现在程序员不知道函数调用是本地的还是一个慢速的 RPC。这样的混淆会导致系统不可预测，并为调试增加不必要的复杂性。滥用 RPC 可能导致不可维护的杂乱代码，而不是简化软件。</p>
+<p>鉴于此，请考虑以下建议：</p>
+<ul class="simple">
+<li><p>确保明确哪些函数调用是本地的，哪些是远程的。</p></li>
+<li><p>记录系统文档，明确组件之间的依赖关系。</p></li>
+<li><p>处理错误情况。当 RPC 服务器长时间宕机时，客户端应该如何反应？</p></li>
+</ul>
+<p>当不确定时，避免使用 RPC。如果可以，您应该使用异步管道——而不是 RPC 类似的阻塞，结果会异步推送到下一个计算阶段。</p>
+</div>
+</section>
+<section id="id6">
+<h2>回调队列<a class="headerlink" href="#id6" title="Link to this heading">¶</a></h2>
+<p>一般来说，通过 RabbitMQ 实现 RPC 很简单。客户端发送请求消息，服务器回复响应消息。为了接收响应，客户端需要在请求中发送一个“回调(callback)”队列地址。让我们尝试一下：</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">async</span> <span class="k">def</span> <span class="nf">main</span><span class="p">():</span>
+    <span class="o">...</span>
+
+    <span class="c1"># 用于结果的队列</span>
+    <span class="n">callback_queue</span> <span class="o">=</span> <span class="k">await</span> <span class="n">channel</span><span class="o">.</span><span class="n">declare_queue</span><span class="p">(</span><span class="n">exclusive</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+    <span class="k">await</span> <span class="n">channel</span><span class="o">.</span><span class="n">default_exchange</span><span class="o">.</span><span class="n">publish</span><span class="p">(</span>
+        <span class="n">Message</span><span class="p">(</span>
+            <span class="n">request</span><span class="p">,</span>
+            <span class="n">reply_to</span><span class="o">=</span><span class="n">callback_queue</span><span class="o">.</span><span class="n">name</span>
+        <span class="p">),</span>
+        <span class="n">routing_key</span><span class="o">=</span><span class="s1">&#39;rpc_queue&#39;</span>
+    <span class="p">)</span>
+
+    <span class="c1"># ... 还有一些代码来从 callback_queue 读取响应消息 ...</span>
+
+<span class="o">...</span>
+</pre></div>
+</div>
+<div class="admonition note">
+<p class="admonition-title">备注</p>
+<p><strong>消息属性</strong></p>
+<p>AMQP 协议预定义了一组与消息相关的 14 个属性。大多数属性很少使用，以下属性是例外：</p>
+<ul class="simple">
+<li><p><cite>delivery_mode</cite>：将消息标记为持久（值为 2）或临时（任何其他值）。您可能还记得这个属性来自于 <a class="reference internal" href="2-work-queues.html#work-queues"><span class="std std-ref">第二个教程</span></a>。</p></li>
+<li><p><cite>content_type</cite>：用于描述编码的 MIME 类型。例如，对于常用的 JSON 编码，设置此属性为 <cite>application/json</cite> 是一个好习惯。</p></li>
+<li><p><cite>reply_to</cite>：通常用于命名回调队列。</p></li>
+<li><p><cite>correlation_id</cite>：用于将 RPC 响应与请求关联。</p></li>
+</ul>
+<p>详细信息见 <a class="reference internal" href="../apidoc.html#aio_pika.Message" title="aio_pika.Message"><code class="xref py py-class docutils literal notranslate"><span class="pre">aio_pika.Message</span></code></a>。</p>
+</div>
+</section>
+<section id="id">
+<h2>关联 ID<a class="headerlink" href="#id" title="Link to this heading">¶</a></h2>
+<p>在上面提出的方法中，我们建议为每个 RPC 请求创建一个回调队列。这是相当低效的，但幸运的是，有更好的方法 —— 我们可以为每个客户端创建一个单一的回调队列。</p>
+<p>这就引出了一个新问题：在那个队列中收到响应后，无法明确响应属于哪个请求。这时就需要使用 <cite>correlation_id</cite> 属性。我们将为每个请求设置一个唯一值。稍后，当我们在回调队列中接收到消息时，我们会查看这个属性，并根据它能够将响应与请求匹配。如果看到一个未知的 <cite>correlation_id</cite> 值，我们可以安全地丢弃这条消息 —— 它不属于我们的请求。</p>
+<p>你可能会问，为什么在回调队列中忽略未知消息，而不是出现错误？这是因为在服务器端可能发生竞争条件。虽然不太可能，但RPC服务器可能会在发送答案后、发送请求确认消息之前崩溃。如果发生这种情况，重启的RPC服务器将再次处理该请求。这就是为什么在客户端我们必须优雅地处理重复的响应，理想情况下，RPC 应该是幂等的。</p>
+</section>
+<section id="id7">
+<h2>总结<a class="headerlink" href="#id7" title="Link to this heading">¶</a></h2>
+<p>我们的 RPC 工作流程如下：</p>
+<ul class="simple">
+<li><p>当客户端启动时，它创建一个匿名的独占回调队列。</p></li>
+<li><p>对于 RPC 请求，客户端发送一条消息，包含两个属性： <cite>reply_to</cite> ，设置为回调队列，以及 <cite>correlation_id</cite>，为每个请求设置一个唯一值。</p></li>
+<li><p>请求被发送到 <cite>rpc_queue</cite> 队列。</p></li>
+<li><p>RPC 工作者（即服务器）在该队列上等待请求。当请求出现时，它执行任务并将结果消息发送回客户端，使用 <cite>reply_to</cite> 字段中的队列。</p></li>
+<li><p>客户端在回调队列上等待数据。当消息出现时，它检查 <cite>correlation_id</cite> 属性。如果与请求中的值匹配，则将响应返回给应用程序。</p></li>
+</ul>
+</section>
+<section id="id8">
+<h2>综合起来<a class="headerlink" href="#id8" title="Link to this heading">¶</a></h2>
+<p><a class="reference download internal" download="" href="../_downloads/ee2f7e32518ac51bfd6acdf558f76b02/rpc_server.py"><code class="xref download docutils literal notranslate"><span class="pre">rpc_server.py</span></code></a> 的代码:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="kn">import</span> <span class="nn">asyncio</span>
+<span class="linenos"> 2</span><span class="kn">import</span> <span class="nn">logging</span>
+<span class="linenos"> 3</span>
+<span class="linenos"> 4</span><span class="kn">from</span> <span class="nn">aio_pika</span> <span class="kn">import</span> <span class="n">Message</span><span class="p">,</span> <span class="n">connect</span>
+<span class="linenos"> 5</span><span class="kn">from</span> <span class="nn">aio_pika.abc</span> <span class="kn">import</span> <span class="n">AbstractIncomingMessage</span>
+<span class="linenos"> 6</span>
+<span class="linenos"> 7</span>
+<span class="linenos"> 8</span><span class="k">def</span> <span class="nf">fib</span><span class="p">(</span><span class="n">n</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+<span class="linenos"> 9</span>    <span class="k">if</span> <span class="n">n</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+<span class="linenos">10</span>        <span class="k">return</span> <span class="mi">0</span>
+<span class="linenos">11</span>    <span class="k">elif</span> <span class="n">n</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+<span class="linenos">12</span>        <span class="k">return</span> <span class="mi">1</span>
+<span class="linenos">13</span>    <span class="k">else</span><span class="p">:</span>
+<span class="linenos">14</span>        <span class="k">return</span> <span class="n">fib</span><span class="p">(</span><span class="n">n</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span> <span class="o">+</span> <span class="n">fib</span><span class="p">(</span><span class="n">n</span> <span class="o">-</span> <span class="mi">2</span><span class="p">)</span>
+<span class="linenos">15</span>
+<span class="linenos">16</span>
+<span class="linenos">17</span><span class="k">async</span> <span class="k">def</span> <span class="nf">main</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="linenos">18</span>    <span class="c1"># Perform connection</span>
+<span class="linenos">19</span>    <span class="n">connection</span> <span class="o">=</span> <span class="k">await</span> <span class="n">connect</span><span class="p">(</span><span class="s2">&quot;amqp://guest:guest@localhost/&quot;</span><span class="p">)</span>
+<span class="linenos">20</span>
+<span class="linenos">21</span>    <span class="c1"># Creating a channel</span>
+<span class="linenos">22</span>    <span class="n">channel</span> <span class="o">=</span> <span class="k">await</span> <span class="n">connection</span><span class="o">.</span><span class="n">channel</span><span class="p">()</span>
+<span class="linenos">23</span>    <span class="n">exchange</span> <span class="o">=</span> <span class="n">channel</span><span class="o">.</span><span class="n">default_exchange</span>
+<span class="linenos">24</span>
+<span class="linenos">25</span>    <span class="c1"># Declaring queue</span>
+<span class="linenos">26</span>    <span class="n">queue</span> <span class="o">=</span> <span class="k">await</span> <span class="n">channel</span><span class="o">.</span><span class="n">declare_queue</span><span class="p">(</span><span class="s2">&quot;rpc_queue&quot;</span><span class="p">)</span>
+<span class="linenos">27</span>
+<span class="linenos">28</span>    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot; [x] Awaiting RPC requests&quot;</span><span class="p">)</span>
+<span class="linenos">29</span>
+<span class="linenos">30</span>    <span class="c1"># Start listening the queue with name &#39;hello&#39;</span>
+<span class="linenos">31</span>    <span class="k">async</span> <span class="k">with</span> <span class="n">queue</span><span class="o">.</span><span class="n">iterator</span><span class="p">()</span> <span class="k">as</span> <span class="n">qiterator</span><span class="p">:</span>
+<span class="linenos">32</span>        <span class="n">message</span><span class="p">:</span> <span class="n">AbstractIncomingMessage</span>
+<span class="linenos">33</span>        <span class="k">async</span> <span class="k">for</span> <span class="n">message</span> <span class="ow">in</span> <span class="n">qiterator</span><span class="p">:</span>
+<span class="linenos">34</span>            <span class="k">try</span><span class="p">:</span>
+<span class="linenos">35</span>                <span class="k">async</span> <span class="k">with</span> <span class="n">message</span><span class="o">.</span><span class="n">process</span><span class="p">(</span><span class="n">requeue</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+<span class="linenos">36</span>                    <span class="k">assert</span> <span class="n">message</span><span class="o">.</span><span class="n">reply_to</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+<span class="linenos">37</span>
+<span class="linenos">38</span>                    <span class="n">n</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">message</span><span class="o">.</span><span class="n">body</span><span class="o">.</span><span class="n">decode</span><span class="p">())</span>
+<span class="linenos">39</span>
+<span class="linenos">40</span>                    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot; [.] fib(</span><span class="si">{</span><span class="n">n</span><span class="si">}</span><span class="s2">)&quot;</span><span class="p">)</span>
+<span class="linenos">41</span>                    <span class="n">response</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">fib</span><span class="p">(</span><span class="n">n</span><span class="p">))</span><span class="o">.</span><span class="n">encode</span><span class="p">()</span>
+<span class="linenos">42</span>
+<span class="linenos">43</span>                    <span class="k">await</span> <span class="n">exchange</span><span class="o">.</span><span class="n">publish</span><span class="p">(</span>
+<span class="linenos">44</span>                        <span class="n">Message</span><span class="p">(</span>
+<span class="linenos">45</span>                            <span class="n">body</span><span class="o">=</span><span class="n">response</span><span class="p">,</span>
+<span class="linenos">46</span>                            <span class="n">correlation_id</span><span class="o">=</span><span class="n">message</span><span class="o">.</span><span class="n">correlation_id</span><span class="p">,</span>
+<span class="linenos">47</span>                        <span class="p">),</span>
+<span class="linenos">48</span>                        <span class="n">routing_key</span><span class="o">=</span><span class="n">message</span><span class="o">.</span><span class="n">reply_to</span><span class="p">,</span>
+<span class="linenos">49</span>                    <span class="p">)</span>
+<span class="linenos">50</span>                    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Request complete&quot;</span><span class="p">)</span>
+<span class="linenos">51</span>            <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+<span class="linenos">52</span>                <span class="n">logging</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span><span class="s2">&quot;Processing error for message </span><span class="si">%r</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">message</span><span class="p">)</span>
+<span class="linenos">53</span>
+<span class="linenos">54</span><span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s2">&quot;__main__&quot;</span><span class="p">:</span>
+<span class="linenos">55</span>    <span class="n">asyncio</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">main</span><span class="p">())</span>
+</pre></div>
+</div>
+<p>服务器代码相当简单明了：</p>
+<ul class="simple">
+<li><ol class="arabic simple" start="34">
+<li><p>和往常一样，我们首先建立连接并声明队列。</p></li>
+</ol>
+</li>
+<li><ol class="arabic simple" start="6">
+<li><p>我们声明了我们的 Fibonacci 函数。它假设只有有效的正整数输入。（不要指望它能处理大数字，这可能是最慢的递归实现）。</p></li>
+</ol>
+</li>
+<li><ol class="arabic simple" start="15">
+<li><p>我们为 <cite>basic_consume</cite> 声明了一个回调，这是 RPC 服务器的核心。 当请求被接收时，它会执行这个回调。它完成工作并将响应发送回去。</p></li>
+</ol>
+</li>
+</ul>
+<p><a class="reference download internal" download="" href="../_downloads/1298b97844652da2d8f2129a4fdbff24/rpc_client.py"><code class="xref download docutils literal notranslate"><span class="pre">rpc_client.py</span></code></a> 的代码:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="kn">import</span> <span class="nn">asyncio</span>
+<span class="linenos"> 2</span><span class="kn">import</span> <span class="nn">uuid</span>
+<span class="linenos"> 3</span><span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">MutableMapping</span>
+<span class="linenos"> 4</span>
+<span class="linenos"> 5</span><span class="kn">from</span> <span class="nn">aio_pika</span> <span class="kn">import</span> <span class="n">Message</span><span class="p">,</span> <span class="n">connect</span>
+<span class="linenos"> 6</span><span class="kn">from</span> <span class="nn">aio_pika.abc</span> <span class="kn">import</span> <span class="p">(</span>
+<span class="linenos"> 7</span>    <span class="n">AbstractChannel</span><span class="p">,</span> <span class="n">AbstractConnection</span><span class="p">,</span> <span class="n">AbstractIncomingMessage</span><span class="p">,</span> <span class="n">AbstractQueue</span><span class="p">,</span>
+<span class="linenos"> 8</span><span class="p">)</span>
+<span class="linenos"> 9</span>
+<span class="linenos">10</span>
+<span class="linenos">11</span><span class="k">class</span> <span class="nc">FibonacciRpcClient</span><span class="p">:</span>
+<span class="linenos">12</span>    <span class="n">connection</span><span class="p">:</span> <span class="n">AbstractConnection</span>
+<span class="linenos">13</span>    <span class="n">channel</span><span class="p">:</span> <span class="n">AbstractChannel</span>
+<span class="linenos">14</span>    <span class="n">callback_queue</span><span class="p">:</span> <span class="n">AbstractQueue</span>
+<span class="linenos">15</span>
+<span class="linenos">16</span>    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="linenos">17</span>        <span class="bp">self</span><span class="o">.</span><span class="n">futures</span><span class="p">:</span> <span class="n">MutableMapping</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">Future</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
+<span class="linenos">18</span>
+<span class="linenos">19</span>    <span class="k">async</span> <span class="k">def</span> <span class="nf">connect</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;FibonacciRpcClient&quot;</span><span class="p">:</span>
+<span class="linenos">20</span>        <span class="bp">self</span><span class="o">.</span><span class="n">connection</span> <span class="o">=</span> <span class="k">await</span> <span class="n">connect</span><span class="p">(</span><span class="s2">&quot;amqp://guest:guest@localhost/&quot;</span><span class="p">)</span>
+<span class="linenos">21</span>        <span class="bp">self</span><span class="o">.</span><span class="n">channel</span> <span class="o">=</span> <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">connection</span><span class="o">.</span><span class="n">channel</span><span class="p">()</span>
+<span class="linenos">22</span>        <span class="bp">self</span><span class="o">.</span><span class="n">callback_queue</span> <span class="o">=</span> <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">channel</span><span class="o">.</span><span class="n">declare_queue</span><span class="p">(</span><span class="n">exclusive</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="linenos">23</span>        <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">callback_queue</span><span class="o">.</span><span class="n">consume</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">on_response</span><span class="p">,</span> <span class="n">no_ack</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="linenos">24</span>
+<span class="linenos">25</span>        <span class="k">return</span> <span class="bp">self</span>
+<span class="linenos">26</span>
+<span class="linenos">27</span>    <span class="k">async</span> <span class="k">def</span> <span class="nf">on_response</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">message</span><span class="p">:</span> <span class="n">AbstractIncomingMessage</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="linenos">28</span>        <span class="k">if</span> <span class="n">message</span><span class="o">.</span><span class="n">correlation_id</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+<span class="linenos">29</span>            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Bad message </span><span class="si">{</span><span class="n">message</span><span class="si">!r}</span><span class="s2">&quot;</span><span class="p">)</span>
+<span class="linenos">30</span>            <span class="k">return</span>
+<span class="linenos">31</span>
+<span class="linenos">32</span>        <span class="n">future</span><span class="p">:</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">Future</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">futures</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="n">message</span><span class="o">.</span><span class="n">correlation_id</span><span class="p">)</span>
+<span class="linenos">33</span>        <span class="n">future</span><span class="o">.</span><span class="n">set_result</span><span class="p">(</span><span class="n">message</span><span class="o">.</span><span class="n">body</span><span class="p">)</span>
+<span class="linenos">34</span>
+<span class="linenos">35</span>    <span class="k">async</span> <span class="k">def</span> <span class="nf">call</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">n</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+<span class="linenos">36</span>        <span class="n">correlation_id</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">uuid</span><span class="o">.</span><span class="n">uuid4</span><span class="p">())</span>
+<span class="linenos">37</span>        <span class="n">loop</span> <span class="o">=</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">get_running_loop</span><span class="p">()</span>
+<span class="linenos">38</span>        <span class="n">future</span> <span class="o">=</span> <span class="n">loop</span><span class="o">.</span><span class="n">create_future</span><span class="p">()</span>
+<span class="linenos">39</span>
+<span class="linenos">40</span>        <span class="bp">self</span><span class="o">.</span><span class="n">futures</span><span class="p">[</span><span class="n">correlation_id</span><span class="p">]</span> <span class="o">=</span> <span class="n">future</span>
+<span class="linenos">41</span>
+<span class="linenos">42</span>        <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">channel</span><span class="o">.</span><span class="n">default_exchange</span><span class="o">.</span><span class="n">publish</span><span class="p">(</span>
+<span class="linenos">43</span>            <span class="n">Message</span><span class="p">(</span>
+<span class="linenos">44</span>                <span class="nb">str</span><span class="p">(</span><span class="n">n</span><span class="p">)</span><span class="o">.</span><span class="n">encode</span><span class="p">(),</span>
+<span class="linenos">45</span>                <span class="n">content_type</span><span class="o">=</span><span class="s2">&quot;text/plain&quot;</span><span class="p">,</span>
+<span class="linenos">46</span>                <span class="n">correlation_id</span><span class="o">=</span><span class="n">correlation_id</span><span class="p">,</span>
+<span class="linenos">47</span>                <span class="n">reply_to</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">callback_queue</span><span class="o">.</span><span class="n">name</span><span class="p">,</span>
+<span class="linenos">48</span>            <span class="p">),</span>
+<span class="linenos">49</span>            <span class="n">routing_key</span><span class="o">=</span><span class="s2">&quot;rpc_queue&quot;</span><span class="p">,</span>
+<span class="linenos">50</span>        <span class="p">)</span>
+<span class="linenos">51</span>
+<span class="linenos">52</span>        <span class="k">return</span> <span class="nb">int</span><span class="p">(</span><span class="k">await</span> <span class="n">future</span><span class="p">)</span>
+<span class="linenos">53</span>
+<span class="linenos">54</span>
+<span class="linenos">55</span><span class="k">async</span> <span class="k">def</span> <span class="nf">main</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="linenos">56</span>    <span class="n">fibonacci_rpc</span> <span class="o">=</span> <span class="k">await</span> <span class="n">FibonacciRpcClient</span><span class="p">()</span><span class="o">.</span><span class="n">connect</span><span class="p">()</span>
+<span class="linenos">57</span>    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot; [x] Requesting fib(30)&quot;</span><span class="p">)</span>
+<span class="linenos">58</span>    <span class="n">response</span> <span class="o">=</span> <span class="k">await</span> <span class="n">fibonacci_rpc</span><span class="o">.</span><span class="n">call</span><span class="p">(</span><span class="mi">30</span><span class="p">)</span>
+<span class="linenos">59</span>    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot; [.] Got </span><span class="si">{</span><span class="n">response</span><span class="si">!r}</span><span class="s2">&quot;</span><span class="p">)</span>
+<span class="linenos">60</span>
+<span class="linenos">61</span>
+<span class="linenos">62</span><span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s2">&quot;__main__&quot;</span><span class="p">:</span>
+<span class="linenos">63</span>    <span class="n">asyncio</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">main</span><span class="p">())</span>
+</pre></div>
+</div>
+<p>客户端代码稍微复杂一些：</p>
+<ul class="simple">
+<li><ol class="arabic simple" start="15">
+<li><p>我们建立连接、通道，并声明一个独占的“回调”队列用于接收回复。</p></li>
+</ol>
+</li>
+<li><ol class="arabic simple" start="22">
+<li><p>我们订阅“回调”队列，以便接收 RPC 响应。</p></li>
+</ol>
+</li>
+<li><p>(26) 每当响应被接收时，<cite>on_response</cite> 回调执行非常简单的任务，
+对于每条响应消息，它检查 <cite>correlation_id</cite> 是否是我们要找的那个。
+如果是，它将响应保存在 <cite>self.response</cite> 中并中断消费循环。</p></li>
+<li><ol class="arabic simple" start="30">
+<li><p>接下来，我们定义了我们的主调用方法 - 它执行实际的 RPC 请求。</p></li>
+</ol>
+</li>
+<li><ol class="arabic simple" start="31">
+<li><p>在这个方法中，首先生成一个唯一的 <cite>correlation_id</cite> 编号并保存 - <cite>on_response</cite> 回调函数将使用这个值捕获适当的响应。</p></li>
+</ol>
+</li>
+<li><ol class="arabic simple" start="36">
+<li><p>接下来，我们发布请求消息，带有两个属性：<cite>reply_to</cite> 和 <cite>correlation_id</cite>。最后，我们将响应返回给用户。</p></li>
+</ol>
+</li>
+</ul>
+<p>我们的 RPC 服务现在准备就绪。我们可以启动服务器:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>$ python rpc_server.py
+[x] Awaiting RPC requests
+</pre></div>
+</div>
+<p>要请求一个 Fibonacci 数字，请运行客户端:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>$ python rpc_client.py
+[x] Requesting fib(30)
+</pre></div>
+</div>
+<p>所展示的设计并不是 RPC 服务的唯一实现方式，但它具有一些重要的优点：</p>
+<p>如果 RPC 服务器太慢，你可以通过简单地运行另一个服务器来扩展。
+尝试在新控制台中运行第二个 <cite>rpc_server.py</cite>。
+在客户端方面，RPC 仅需发送和接收一条消息。
+不需要像 <cite>queue_declare</cite> 这样的同步调用。因此，RPC 客户端
+只需进行一次网络往返即可完成单个 RPC 请求。
+我们的代码仍然相当简单，没有尝试解决更复杂（但重要）的问题，例如：</p>
+<ul class="simple">
+<li><p>如果没有服务器在运行，客户端应该如何反应？</p></li>
+<li><p>客户端是否应该对 RPC 设置某种超时？</p></li>
+<li><p>如果服务器发生故障并引发异常，是否应该将其转发给客户端？</p></li>
+<li><p>在处理之前，如何防止无效的传入消息（例如检查边界）？</p></li>
+</ul>
+<div class="admonition note">
+<p class="admonition-title">备注</p>
+<p>如果你想实验一下，可能会发现 rabbitmq-management 插件对于查看队列非常有用。</p>
+</div>
+<div class="admonition note">
+<p class="admonition-title">备注</p>
+<p>这些材料是来自 <strong>rabbitmq.org</strong> 上的 <a class="reference external" href="https://www.rabbitmq.com/tutorials/tutorial-six-python.html">官方教程</a> 。</p>
+</div>
+</section>
+</section>
+
+        </article>
+      </div>
+      <footer>
+        
+        <div class="related-pages">
+          <a class="next-page" href="7-publisher-confirms.html">
+              <div class="page-info">
+                <div class="context">
+                  <span>Next</span>
+                </div>
+                <div class="title">发布确认</div>
+              </div>
+              <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
+            </a>
+          <a class="prev-page" href="5-topics.html">
+              <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
+              <div class="page-info">
+                <div class="context">
+                  <span>Previous</span>
+                </div>
+                
+                <div class="title">Topics</div>
+                
+              </div>
+            </a>
+        </div>
+        <div class="bottom-of-page">
+          <div class="left-details">
+            <div class="copyright">
+                Copyright &#169; 2024, Dmitry Orlov
+            </div>
+            Made with <a href="https://www.sphinx-doc.org/">Sphinx</a> and <a class="muted-link" href="https://pradyunsg.me">@pradyunsg</a>'s
+            
+            <a href="https://github.com/pradyunsg/furo">Furo</a>
+            
+          </div>
+          <div class="right-details">
+            <div class="icons">
+              <a class="muted-link " href="https://github.com/mosquito/aio-pika" aria-label="GitHub"><svg stroke="currentColor" fill="currentColor" stroke-width="0" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0 0 16 8c0-4.42-3.58-8-8-8z"></path></svg></a>
+              
+            </div>
+          </div>
+        </div>
+        
+      </footer>
+    </div>
+    <aside class="toc-drawer">
+      
+      
+      <div class="toc-sticky toc-scroll">
+        <div class="toc-title-container">
+          <span class="toc-title">
+            On this page
+          </span>
+        </div>
+        <div class="toc-tree-container">
+          <div class="toc-tree">
+            <ul>
+<li><a class="reference internal" href="#">远程过程调用(RPC)</a><ul>
+<li><a class="reference internal" href="#id5">客户端接口</a></li>
+<li><a class="reference internal" href="#id6">回调队列</a></li>
+<li><a class="reference internal" href="#id">关联 ID</a></li>
+<li><a class="reference internal" href="#id7">总结</a></li>
+<li><a class="reference internal" href="#id8">综合起来</a></li>
+</ul>
+</li>
+</ul>
+
+          </div>
+        </div>
+      </div>
+      
+      
+    </aside>
+  </div>
+</div><script src="../_static/documentation_options.js?v=5d35f1ad"></script>
+    <script src="../_static/doctools.js?v=9bcbadda"></script>
+    <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../_static/scripts/furo.js?v=5fa4622c"></script>
+    <script src="../_static/translations.js?v=beaddf03"></script>
+    </body>
+</html>
